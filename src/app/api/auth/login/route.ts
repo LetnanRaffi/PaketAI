@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = await request.json();
 
     // Create a plain JSON response — NOT NextResponse.next()
-    let response = NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
 
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {

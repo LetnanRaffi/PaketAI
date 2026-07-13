@@ -1,20 +1,29 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, X, RotateCcw } from 'lucide-react';
+import { Camera, X, RotateCcw, Check } from 'lucide-react';
 
 interface CameraComponentProps {
   onCapture: (imageData: string) => void;
   onClose: () => void;
+  multiMode?: boolean;
+  onCaptureMultiple?: (images: string[]) => void;
 }
 
-export default function CameraComponent({ onCapture, onClose }: CameraComponentProps) {
+export default function CameraComponent({
+  onCapture,
+  onClose,
+  multiMode = false,
+  onCaptureMultiple,
+}: CameraComponentProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [showFlash, setShowFlash] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -39,7 +48,7 @@ export default function CameraComponent({ onCapture, onClose }: CameraComponentP
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = mediaStream;
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
@@ -75,24 +84,44 @@ export default function CameraComponent({ onCapture, onClose }: CameraComponentP
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Mirror if using front camera
     if (facingMode === 'user') {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
-    
+
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
+
     const imageData = canvas.toDataURL('image/jpeg', 0.9);
-    onCapture(imageData);
-  }, [isReady, facingMode, onCapture]);
+
+    if (multiMode) {
+      // Flash effect
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 150);
+
+      setCapturedImages(prev => {
+        const next = [...prev, imageData];
+        return next;
+      });
+    } else {
+      onCapture(imageData);
+    }
+  }, [isReady, facingMode, multiMode, onCapture]);
+
+  const handleDone = useCallback(() => {
+    stopCamera();
+    onCaptureMultiple?.(capturedImages);
+  }, [capturedImages, onCaptureMultiple, stopCamera]);
+
+  const removeLastPhoto = useCallback(() => {
+    setCapturedImages(prev => prev.slice(0, -1));
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -104,7 +133,16 @@ export default function CameraComponent({ onCapture, onClose }: CameraComponentP
         >
           <X className="h-5 w-5" />
         </button>
-        <span className="text-sm font-semibold text-white">Arahkan kamera ke resi</span>
+        <div className="flex flex-col items-center">
+          <span className="text-sm font-semibold text-white">
+            {multiMode ? 'Arahkan kamera ke resi' : 'Arahkan kamera ke resi'}
+          </span>
+          {multiMode && capturedImages.length > 0 && (
+            <span className="text-[10px] text-white/70 mt-0.5">
+              {capturedImages.length} foto diambil
+            </span>
+          )}
+        </div>
         <button
           onClick={switchCamera}
           className="p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
@@ -123,7 +161,12 @@ export default function CameraComponent({ onCapture, onClose }: CameraComponentP
           className="w-full h-full object-cover"
           style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
         />
-        
+
+        {/* Flash effect */}
+        {showFlash && (
+          <div className="absolute inset-0 bg-white z-20 animate-[flash_0.15s_ease-out]" />
+        )}
+
         {/* Scanning Guide Overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-3/4 h-1/2 border-2 border-white/50 rounded-lg relative">
@@ -136,6 +179,29 @@ export default function CameraComponent({ onCapture, onClose }: CameraComponentP
             </div>
           </div>
         </div>
+
+        {/* Captured photos thumbnail strip */}
+        {multiMode && capturedImages.length > 0 && (
+          <div className="absolute bottom-24 left-0 right-0 z-10 flex justify-center">
+            <div className="flex gap-2 px-4">
+              {capturedImages.slice(-4).map((img, i) => (
+                <div key={i} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img}
+                    alt={`Foto ${capturedImages.length - 3 + i}`}
+                    className="h-14 w-14 rounded-lg border-2 border-white object-cover shadow-lg"
+                  />
+                  <div className="absolute -top-1 -right-1 h-4 w-4 bg-indigo-500 rounded-full flex items-center justify-center">
+                    <span className="text-[8px] font-bold text-white">
+                      {capturedImages.length - 3 + i}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Loading state */}
         {!isReady && !error && (
@@ -164,18 +230,57 @@ export default function CameraComponent({ onCapture, onClose }: CameraComponentP
         )}
       </div>
 
-      {/* Capture Button */}
+      {/* Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent">
-        <div className="flex justify-center">
-          <button
-            onClick={capturePhoto}
-            disabled={!isReady}
-            className="w-16 h-16 rounded-full bg-white border-4 border-indigo-500 flex items-center justify-center hover:bg-indigo-50 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            <div className="w-12 h-12 rounded-full bg-indigo-500" />
-          </button>
-        </div>
-        <p className="text-white/70 text-xs text-center mt-3">Tekan untuk mengambil gambar</p>
+        {multiMode ? (
+          <div className="flex items-center justify-center gap-6">
+            {/* Remove last photo */}
+            {capturedImages.length > 0 && (
+              <button
+                onClick={removeLastPhoto}
+                className="w-12 h-12 rounded-full bg-black/40 border border-white/30 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+
+            {/* Capture button */}
+            <button
+              onClick={capturePhoto}
+              disabled={!isReady}
+              className="w-16 h-16 rounded-full bg-white border-4 border-indigo-500 flex items-center justify-center hover:bg-indigo-50 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            >
+              <div className="w-12 h-12 rounded-full bg-indigo-500" />
+            </button>
+
+            {/* Done button (only when at least 1 photo) */}
+            {capturedImages.length > 0 && (
+              <button
+                onClick={handleDone}
+                className="w-12 h-12 rounded-full bg-indigo-500 border-4 border-white flex items-center justify-center text-white hover:bg-indigo-400 active:scale-95 transition-all shadow-lg"
+              >
+                <Check className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <button
+              onClick={capturePhoto}
+              disabled={!isReady}
+              className="w-16 h-16 rounded-full bg-white border-4 border-indigo-500 flex items-center justify-center hover:bg-indigo-50 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            >
+              <div className="w-12 h-12 rounded-full bg-indigo-500" />
+            </button>
+          </div>
+        )}
+        <p className="text-white/70 text-xs text-center mt-3">
+          {multiMode
+            ? capturedImages.length === 0
+              ? 'Tekan untuk mengambil gambar resi'
+              : `${capturedImages.length} foto — tekan ✓ untuk scan semua`
+            : 'Tekan untuk mengambil gambar'}
+        </p>
       </div>
 
       {/* Hidden canvas for capture */}
