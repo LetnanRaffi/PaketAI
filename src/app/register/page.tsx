@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Building2, User, UserPlus, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Building2, User, UserPlus, AlertCircle, MailCheck } from 'lucide-react';
 
 export default function Register() {
   const router = useRouter();
@@ -13,6 +13,7 @@ export default function Register() {
   const [orgName, setOrgName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +44,7 @@ export default function Register() {
         throw new Error(data.error || 'Gagal mendaftar.');
       }
 
-      router.push('/onboarding');
-      router.refresh();
+      setRegistered(true);
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message || 'Gagal mendaftar.');
@@ -55,6 +55,32 @@ export default function Register() {
   return (
     <div className="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6">
       <div className="mx-auto w-full max-w-sm">
+        {registered ? (
+          <div className="flex flex-col items-center text-center space-y-6">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+              <MailCheck className="h-8 w-8" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Cek Email Anda</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Kami sudah mengirim link verifikasi ke <span className="font-semibold text-slate-700">{email}</span>.
+                Buka email dan klik link verifikasi untuk mengaktifkan akun.
+              </p>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 w-full text-left">
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Setelah verifikasi, Anda akan diarahkan ke halaman login untuk masuk.
+              </p>
+            </div>
+            <button
+              onClick={() => { setRegistered(false); setFullName(''); setEmail(''); setPassword(''); setOrgName(''); }}
+              className="text-sm font-semibold text-indigo-600 hover:text-indigo-500"
+            >
+              Daftar akun lain
+            </button>
+          </div>
+        ) : (
+        <>
         <div className="flex flex-col items-center text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/10">
             <span className="text-xl font-bold tracking-wider">P</span>
@@ -183,6 +209,8 @@ export default function Register() {
             Masuk
           </Link>
         </p>
+        </>
+        )}
       </div>
     </div>
   );

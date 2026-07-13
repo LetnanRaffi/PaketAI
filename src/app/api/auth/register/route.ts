@@ -1,13 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { TRIAL_DAYS } from '@/lib/billing';
 
 export async function POST(request: NextRequest) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseKey || !serviceKey) {
       return NextResponse.json(
         { error: 'Server configuration error.' },
         { status: 500 }
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true, needsVerification: true });
 
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
@@ -41,14 +43,16 @@ export async function POST(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
-          Object.entries(headers).forEach(([key, value]) =>
-            response.headers.set(key, value)
-          );
+          if (headers) {
+            Object.entries(headers).forEach(([key, value]) =>
+              response.headers.set(key, value)
+            );
+          }
         },
       },
     });
 
-    // 1. Create auth user
+    // 1. Create auth user (uses anon key so session cookies get set)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -68,18 +72,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Create organization
-    const slug = orgName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 50);
+    // 2-4. Use service role to bypass RLS for org/subscription inserts
+    const admin = createClient(supabaseUrl, serviceKey);
 
-    const { data: org, error: orgError } = await supabase
+    const slug =
+      orgName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 50) +
+      '-' +
+      Date.now().toString(36);
+
+    const { data: org, error: orgError } = await admin
       .from('organizations')
       .insert({
         name: orgName,
-        slug: slug + '-' + Date.now().toString(36),
+        slug,
         plan: 'trial',
         trial_ends_at: new Date(
           Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000
@@ -96,8 +105,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Link user to org
-    const { error: userError } = await supabase.from('users').insert({
+    const { error: userError } = await admin.from('users').insert({
       id: authData.user.id,
       org_id: org.id,
       role: 'admin',
@@ -108,8 +116,7 @@ export async function POST(request: NextRequest) {
       console.error('[Register] User link error:', userError);
     }
 
-    // 4. Create initial subscription
-    await supabase.from('subscriptions').insert({
+    await admin.from('subscriptions').insert({
       org_id: org.id,
       status: 'pending',
       amount: 159000,
