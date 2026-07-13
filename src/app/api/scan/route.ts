@@ -15,38 +15,17 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    // 1. Upload image to Supabase Storage
-    // Extract base64 data (remove data:image/jpeg;base64, prefix)
+    // 1. Prepare image data
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
     
-    // Determine mime type from prefix or default to jpeg
     let mimeType = 'image/jpeg';
     const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
     if (mimeMatch) {
       mimeType = mimeMatch[1];
     }
     const ext = mimeType.split('/')[1] || 'jpg';
-    
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-    
-    const { error: uploadError } = await supabase
-      .storage
-      .from('receipts')
-      .upload(fileName, buffer, {
-        contentType: mimeType,
-        upsert: false
-      });
-
-    if (uploadError) {
-      throw new Error(`Failed to upload image: ${uploadError.message}`);
-    }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from('receipts')
-      .getPublicUrl(fileName);
 
     // 2. Fetch employee names from DB for matching
     const { data: employees, error: empError } = await supabase
@@ -78,40 +57,57 @@ Format JSON yang diharapkan:
   "match_confidence": 0.0 (0 sampai 1.0)
 }`;
 
-    // 4. Call Gemini API with fallback
-    const models = ['gemini-3-flash-preview', 'gemini-2.5-flash'];
-    let response;
-    let lastError;
+    // 4. Call Gemini API with fallback (run in parallel with upload)
+    const models = ['gemini-3-flash-preview', 'gemini-2.5-flash'] as const;
 
-    for (const model of models) {
-      try {
-        response = await ai.models.generateContent({
-          model,
-          contents: [
-            systemInstruction,
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: mimeType
-              }
+    const callGemini = async (model: string) => {
+      return ai.models.generateContent({
+        model,
+        contents: [
+          systemInstruction,
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
             }
-          ],
-          config: {
-            responseMimeType: 'application/json',
           }
-        });
-        break;
-      } catch (err: unknown) {
-        lastError = err;
-        console.warn(`Model ${model} failed, trying next...`);
+        ],
+        config: {
+          responseMimeType: 'application/json',
+        }
+      });
+    };
+
+    const tryGemini = async (): Promise<Awaited<ReturnType<typeof callGemini>>> => {
+      for (const model of models) {
+        try {
+          return await callGemini(model);
+        } catch (err: unknown) {
+          console.warn(`Model ${model} failed, trying next...`);
+          if (model === models[models.length - 1]) throw err;
+        }
       }
-    }
+      throw new Error('All Gemini models failed');
+    };
 
-    if (!response) {
-      throw lastError || new Error('All Gemini models failed');
-    }
+    // Run Gemini + Upload in parallel
+    const [geminiResult, publicUrl] = await Promise.all([
+      tryGemini(),
+      (async () => {
+        const { error } = await supabase
+          .storage
+          .from('receipts')
+          .upload(fileName, buffer, { contentType: mimeType, upsert: false });
+        if (error) throw new Error(`Failed to upload image: ${error.message}`);
+        const { data: { publicUrl } } = supabase
+          .storage
+          .from('receipts')
+          .getPublicUrl(fileName);
+        return publicUrl;
+      })()
+    ]);
 
-    const responseText = response.text;
+    const responseText = geminiResult.text;
     if (!responseText) {
       throw new Error('No response from Gemini API');
     }

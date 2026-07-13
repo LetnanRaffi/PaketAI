@@ -59,6 +59,38 @@ export default function ScanPackage() {
     fetchEmployees();
   }, []);
 
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 1024;
+          let { width, height } = img;
+
+          if (width > MAX_SIZE || height > MAX_SIZE) {
+            if (width > height) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
+            } else {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const runRealScan = async (base64Image: string) => {
     setIsScanning(true);
     setScanStep(1);
@@ -113,24 +145,25 @@ export default function ScanPackage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // We must resize or compress if it's too large, but for now just read as Data URL
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64Data = reader.result as string;
-      setImagePreview(base64Data); // temporary preview before real URL comes back
-      runRealScan(base64Data);
-    };
-    reader.readAsDataURL(file);
+    setScanProgressText('Mempersiapkan gambar...');
+    const compressed = await compressImage(file);
+    setImagePreview(compressed);
+    runRealScan(compressed);
   };
 
-  const handleCameraCapture = (imageData: string) => {
+  const handleCameraCapture = async (imageData: string) => {
     setShowCamera(false);
-    setImagePreview(imageData);
-    runRealScan(imageData);
+    setScanProgressText('Mempersiapkan gambar...');
+    const res = await fetch(imageData);
+    const blob = await res.blob();
+    const file = new File([blob], 'camera.jpg', { type: 'image/jpeg' });
+    const compressed = await compressImage(file);
+    setImagePreview(compressed);
+    runRealScan(compressed);
   };
 
   const handleSavePackage = async (e: React.FormEvent) => {
