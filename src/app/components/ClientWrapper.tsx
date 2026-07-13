@@ -25,9 +25,10 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
       setIsLoggedIn(!!session);
       
       // Auto redirect logic handled mostly by middleware, but client-side fast-refresh helps
-      if (!session && pathname !== '/login') {
+      const publicPaths = ['/login', '/register'];
+      if (!session && !publicPaths.includes(pathname)) {
         router.replace('/login');
-      } else if (session && pathname === '/login') {
+      } else if (session && publicPaths.includes(pathname)) {
         router.replace('/');
       }
     });
