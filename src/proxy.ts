@@ -1,10 +1,9 @@
-import { type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 export default async function proxy(request: NextRequest) {
-  // Skip middleware entirely for auth API routes — they handle their own cookies
   if (request.nextUrl.pathname.startsWith('/api/auth')) {
-    return undefined;
+    return NextResponse.next();
   }
 
   return await updateSession(request);

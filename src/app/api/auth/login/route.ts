@@ -19,24 +19,22 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = await request.json();
 
-    let supabaseResponse = NextResponse.next({
-      request,
-    });
+    // Create a plain JSON response — NOT NextResponse.next()
+    let response = NextResponse.json({ success: true });
 
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+        setAll(cookiesToSet, headers) {
+          // Set cookies on the response
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            response.cookies.set(name, value, options)
+          );
+          // Forward cache-control headers to prevent CDN caching of auth responses
+          Object.entries(headers).forEach(([key, value]) =>
+            response.headers.set(key, value)
           );
         },
       },
@@ -52,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
 
-    return supabaseResponse;
+    return response;
   } catch (error: unknown) {
     const err = error as Error;
     console.error('[Login] Unexpected error:', err.message);
