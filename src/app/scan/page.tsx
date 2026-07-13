@@ -48,7 +48,6 @@ export default function ScanPackage() {
 
   // Batch scan state
   const [scanItems, setScanItems] = useState<ScanItem[]>([]);
-  const [currentScanIndex, setCurrentScanIndex] = useState(0);
   const [estimatedTimePerScan, setEstimatedTimePerScan] = useState(0);
 
   // Overall error
@@ -76,7 +75,7 @@ export default function ScanPackage() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_SIZE = 1024;
+          const MAX_SIZE = 800;
           let { width, height } = img;
 
           if (width > MAX_SIZE || height > MAX_SIZE) {
@@ -125,8 +124,6 @@ export default function ScanPackage() {
     const items = makeItems(images);
     setScanItems(items);
     setPhase('processing');
-    setCurrentScanIndex(0);
-
   }, []);
 
   // Called when camera returns single photo (fallback)
@@ -135,8 +132,6 @@ export default function ScanPackage() {
     const items = makeItems([imageData]);
     setScanItems(items);
     setPhase('processing');
-    setCurrentScanIndex(0);
-
   }, []);
 
   // Called when files are selected from gallery
@@ -153,64 +148,91 @@ export default function ScanPackage() {
     const items = makeItems(images);
     setScanItems(items);
     setPhase('processing');
-    setCurrentScanIndex(0);
 
 
     // Reset the input so the same files can be selected again
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Run batch scan sequentially — triggered when phase changes to 'processing'
+  // Run batch scan — uses batch endpoint for 2+ images, sequential for single
   const startBatchScan = useCallback(
     async (items: ScanItem[]) => {
       const startTime = Date.now();
-      let avgPerScan = 0;
 
-      for (let i = 0; i < items.length; i++) {
-        setCurrentScanIndex(i);
-        setScanItems(prev =>
-          prev.map((it, idx) => (idx === i ? { ...it, status: 'scanning' } : it))
-        );
+      // Mark all as scanning
+      setScanItems(prev => prev.map(it => ({ ...it, status: 'scanning' as const })));
 
-        try {
+      try {
+        if (items.length === 1) {
+          // Single image — use regular endpoint
           const res = await fetch('/api/scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: items[i].imageData }),
+            body: JSON.stringify({ imageBase64: items[0].imageData }),
           });
-
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Gagal scan');
 
           setScanItems(prev =>
+            prev.map(it => ({
+              ...it,
+              status: 'done',
+              result: data,
+              previewUrl: data.receipt_image_url || it.previewUrl,
+              rawName: data.recipient_name_raw || '',
+              courier: data.courier || '',
+              trackingNumber: data.tracking_number || '',
+              confidence: data.match_confidence || 0,
+              selectedEmployeeId: data.matched_employee_id || '',
+              searchTerm: data.matched_employee_name || '',
+            }))
+          );
+        } else {
+          // Multiple images — batch endpoint (1 Gemini call)
+          const res = await fetch('/api/scan-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: items.map(it => it.imageData) }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Gagal scan batch');
+
+          const results = data.results as Array<{
+            receipt_image_url: string;
+            recipient_name_raw: string;
+            tracking_number: string;
+            courier: string;
+            matched_employee_name: string | null;
+            matched_employee_id: string | null;
+            match_confidence: number;
+          }>;
+
+          setScanItems(prev =>
             prev.map((it, idx) => {
-              if (idx !== i) return it;
+              const r = results[idx];
+              if (!r) return { ...it, status: 'error', error: 'Hasil tidak ditemukan' };
               return {
                 ...it,
                 status: 'done',
-                result: data,
-                previewUrl: data.receipt_image_url || it.previewUrl,
-                rawName: data.recipient_name_raw || '',
-                courier: data.courier || '',
-                trackingNumber: data.tracking_number || '',
-                confidence: data.match_confidence || 0,
-                selectedEmployeeId: data.matched_employee_id || '',
-                searchTerm: data.matched_employee_name || '',
+                result: r,
+                previewUrl: r.receipt_image_url || it.previewUrl,
+                rawName: r.recipient_name_raw || '',
+                courier: r.courier || '',
+                trackingNumber: r.tracking_number || '',
+                confidence: r.match_confidence || 0,
+                selectedEmployeeId: r.matched_employee_id || '',
+                searchTerm: r.matched_employee_name || '',
               };
             })
           );
-
-          const elapsed = Date.now() - startTime;
-          avgPerScan = elapsed / (i + 1);
-          setEstimatedTimePerScan(avgPerScan);
-        } catch (err: unknown) {
-          const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
-          setScanItems(prev =>
-            prev.map((it, idx) =>
-              idx === i ? { ...it, status: 'error', error: errMsg } : it
-            )
-          );
         }
+
+        setEstimatedTimePerScan((Date.now() - startTime) / items.length);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+        setScanItems(prev =>
+          prev.map(it => (it.status === 'scanning' ? { ...it, status: 'error', error: errMsg } : it))
+        );
       }
 
       setPhase('review');
@@ -281,7 +303,6 @@ export default function ScanPackage() {
 
   const resetAll = () => {
     setScanItems([]);
-    setCurrentScanIndex(0);
     setPhase('collect');
     setBatchError('');
     setEstimatedTimePerScan(0);
@@ -399,8 +420,8 @@ export default function ScanPackage() {
               <div className="flex items-center gap-1.5 text-slate-500">
                 <RefreshCw className="h-3 w-3 animate-spin" />
                 <span>
-                  {scanItems[currentScanIndex]?.status === 'scanning'
-                    ? `Scan resi ${currentScanIndex + 1}...`
+                  {remainingScans > 0
+                    ? 'AI sedang memproses semua resi...'
                     : ''}
                 </span>
               </div>
@@ -413,7 +434,7 @@ export default function ScanPackage() {
               <div
                 key={item.id}
                 className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${
-                  i === currentScanIndex && item.status === 'scanning'
+                  item.status === 'scanning'
                     ? 'border-indigo-200 bg-indigo-50/50'
                     : item.status === 'done'
                     ? 'border-green-100 bg-green-50/30'
