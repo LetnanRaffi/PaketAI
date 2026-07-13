@@ -2,7 +2,6 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth'];
-const ONBOARDING_PATH = '/onboarding';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -112,37 +111,6 @@ export async function updateSession(request: NextRequest) {
           if (!isAllowed) {
             const url = request.nextUrl.clone();
             url.pathname = '/billing';
-            return NextResponse.redirect(url);
-          }
-        }
-
-        // Check if user needs onboarding (no org or first visit)
-        if (
-          org.plan === 'trial' &&
-          !pathname.startsWith(ONBOARDING_PATH) &&
-          !pathname.startsWith('/api') &&
-          !PUBLIC_PATHS.some((p) => pathname.startsWith(p))
-        ) {
-          // Check if onboarding was completed (employees exist)
-          let count = 0;
-          try {
-            const result = await supabase
-              .from('employees')
-              .select('id', { count: 'exact', head: true })
-              .eq('org_id', orgId);
-            count = result.count ?? 0;
-          } catch {
-            // employees table may not exist yet
-          }
-
-          // If no employees and not on onboarding, redirect to onboarding
-          // Only on first visit (check URL param)
-          if (
-            count === 0 &&
-            request.nextUrl.searchParams.get('onboarded') !== '1'
-          ) {
-            const url = request.nextUrl.clone();
-            url.pathname = ONBOARDING_PATH;
             return NextResponse.redirect(url);
           }
         }

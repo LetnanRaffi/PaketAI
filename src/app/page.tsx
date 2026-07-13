@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Package } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { 
@@ -10,13 +9,11 @@ import {
   Clock, 
   Camera, 
   Users, 
-  LogOut, 
   ChevronRight,
   TrendingUp
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const router = useRouter();
   const [packages, setPackages] = useState<Package[]>([]);
   const [adminEmail, setAdminEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -49,16 +46,6 @@ export default function Dashboard() {
     fetchData();
   }, [supabase.auth]);
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/login');
-      router.refresh();
-    } catch (err) {
-      console.error('Logout error', err);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center bg-white min-h-[50vh]">
@@ -86,13 +73,6 @@ export default function Dashboard() {
             {adminEmail.split('@')[0]}
           </h1>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-red-600 bg-slate-50 border border-slate-100 hover:bg-red-50 hover:border-red-100 py-1.5 px-3 rounded-lg transition-colors duration-100"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          <span>Keluar</span>
-        </button>
       </div>
 
       {/* Info Banner / Quick status */}

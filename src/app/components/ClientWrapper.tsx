@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import BottomNav from './BottomNav';
+import TopNav from './TopNav';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ClientWrapper({ children }: { children: React.ReactNode }) {
@@ -55,6 +56,12 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
       {/* Mobile Frame Container */}
       <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col border-x border-slate-100 bg-white shadow-2xl shadow-slate-200/50 pb-20">
+        {/* Top right account nav */}
+        {!isLoginPage && isLoggedIn && (
+          <div className="absolute top-3 right-3 z-30">
+            <TopNav />
+          </div>
+        )}
         <main className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
           {children}
         </main>
