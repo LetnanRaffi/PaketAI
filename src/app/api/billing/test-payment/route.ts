@@ -1,18 +1,39 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createPaymentLink } from '@/lib/temanqris';
 
 export async function POST() {
   try {
-    const supabase = await createClient();
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder',
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll(); },
+          setAll() {},
+        },
+      }
+    );
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: userData } = await supabase
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!serviceKey || !supabaseUrl) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 });
+    }
+
+    const admin = createAdminClient(supabaseUrl, serviceKey);
+
+    const { data: userData } = await admin
       .from('users')
-      .select('org_id, organizations(name)')
+      .select('org_id')
       .eq('id', user.id)
       .single();
 
@@ -20,9 +41,6 @@ export async function POST() {
       return NextResponse.json({ error: 'No organization' }, { status: 404 });
     }
 
-    const orgName = Array.isArray(userData.organizations)
-      ? (userData.organizations[0] as { name: string })?.name || 'PaketAI'
-      : (userData.organizations as { name: string } | null)?.name || 'PaketAI';
     const orderId = `PAKETAI-TEST-${userData.org_id.slice(0, 8)}-${Date.now().toString(36)}`;
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
@@ -31,13 +49,13 @@ export async function POST() {
 
     const result = await createPaymentLink({
       amount: 1,
-      description: `[TEST] PaketAI - ${orgName}`,
+      description: `[TEST] PaketAI`,
       order_id: orderId,
       webhook_url: webhookUrl,
       callback_url: callbackUrl,
     });
 
-    await supabase.from('subscriptions').insert({
+    await admin.from('subscriptions').insert({
       org_id: userData.org_id,
       status: 'pending',
       amount: 1,
@@ -52,6 +70,7 @@ export async function POST() {
     });
   } catch (error: unknown) {
     const err = error as Error;
+    console.error('[TestPayment] Error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
