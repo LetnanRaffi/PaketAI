@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireUserOrgId } from '@/lib/org';
 import { getKeyPool, isRateLimitError, buildBatchPrompt, matchEmployee } from '@/lib/gemini';
 
 const MODELS = ['gemini-2.5-flash', 'gemini-3-flash-preview'] as const;
 
 export async function POST(request: Request) {
   try {
+    const orgId = await requireUserOrgId();
     const { images } = await request.json() as { images: string[] };
 
     if (!images || images.length === 0) {
@@ -15,7 +17,6 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const pool = getKeyPool();
 
-    // 1. Parse all images
     const parsed = images.map((img) => {
       const base64Data = img.replace(/^data:image\/\w+;base64,/, '');
       let mimeType = 'image/jpeg';
@@ -24,7 +25,6 @@ export async function POST(request: Request) {
       return { base64Data, mimeType };
     });
 
-    // 2. Upload all images to Supabase in parallel
     const uploadPromises = parsed.map(({ base64Data, mimeType }, i) => {
       const ext = mimeType.split('/')[1] || 'jpg';
       const fileName = `${Date.now()}_${i}_${Math.random().toString(36).substring(7)}.${ext}`;
@@ -39,15 +39,15 @@ export async function POST(request: Request) {
         });
     });
 
-    // 3. Fetch employees
+    // Fetch employees scoped to org
     const { data: employees, error: empError } = await supabase
       .from('employees')
-      .select('id, full_name');
+      .select('id, full_name')
+      .eq('org_id', orgId);
 
     if (empError) throw empError;
     const employeeNames = employees?.map(e => e.full_name) || [];
 
-    // 4. Call Gemini with ALL images in one request
     const systemInstruction = buildBatchPrompt(employeeNames, images.length);
 
     const callGemini = async (): Promise<string> => {
@@ -58,7 +58,6 @@ export async function POST(request: Request) {
 
         for (const model of MODELS) {
           try {
-            // Build contents with all images as parts
             const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
               { text: systemInstruction },
             ];
@@ -99,13 +98,11 @@ export async function POST(request: Request) {
       throw new Error('Semua API key Gemini sudah habis / rate-limited. Coba lagi nanti.');
     };
 
-    // Run Gemini + uploads in parallel
     const [responseText, publicUrls] = await Promise.all([
       callGemini(),
       Promise.all(uploadPromises),
     ]);
 
-    // 5. Parse Gemini response (expect JSON array)
     let aiResults: Array<{
       recipient_name_raw?: string;
       tracking_number?: string;
@@ -117,7 +114,6 @@ export async function POST(request: Request) {
     try {
       aiResults = JSON.parse(responseText);
       if (!Array.isArray(aiResults)) {
-        // If model returned a single object instead of array, wrap it
         aiResults = [aiResults];
       }
     } catch {
@@ -130,7 +126,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // 6. Fuzzy match + combine with upload URLs
     const results = aiResults.map((aiData, i) => {
       const matched = matchEmployee(
         aiData.recipient_name_raw || '',
@@ -153,6 +148,9 @@ export async function POST(request: Request) {
 
   } catch (error: unknown) {
     const err = error as Error;
+    if (err.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('ScanBatch API Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

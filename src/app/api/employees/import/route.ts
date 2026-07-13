@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireUserOrgId } from '@/lib/org';
 
 export async function POST(request: Request) {
   try {
+    const orgId = await requireUserOrgId();
     const { csvText } = await request.json();
     if (!csvText) {
       return NextResponse.json(
@@ -13,10 +15,11 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    // Fetch existing employee names for deduplication
+    // Fetch existing employee names for deduplication (scoped to org)
     const { data: existingEmployees, error: fetchError } = await supabase
       .from('employees')
-      .select('full_name');
+      .select('full_name')
+      .eq('org_id', orgId);
 
     if (fetchError) throw fetchError;
 
@@ -44,7 +47,6 @@ export async function POST(request: Request) {
       const [full_name, department = '', phone_number = ''] = parts;
       const lowerName = full_name.toLowerCase().trim();
 
-      // Skip if duplicate
       if (existingNames.has(lowerName) || importNames.has(lowerName)) {
         continue;
       }
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
         full_name: full_name.trim(),
         department: department.trim() || null,
         phone_number: phone_number.trim() || null,
+        org_id: orgId,
       });
     }
 
@@ -78,6 +81,9 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     const err = error as Error;
+    if (err.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

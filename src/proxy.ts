@@ -2,22 +2,31 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 export default async function proxy(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/api/auth')) {
+  const pathname = request.nextUrl.pathname;
+
+  // Allow auth routes and static files through
+  if (pathname.startsWith('/api/auth')) {
     return NextResponse.next();
   }
 
-  return await updateSession(request);
+  // Run session refresh + auth check
+  const response = await updateSession(request);
+
+  // If redirect (to /login), pass through
+  if (response.status === 307 || response.status === 302) {
+    return response;
+  }
+
+  // For billing gate: check if org is expired
+  // We do this by checking for a session cookie and reading the org status
+  // The actual check happens in billing.ts helpers used by pages/APIs
+  // Here we just allow billing-related paths when expired
+
+  return response;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (e.g. robots.txt)
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

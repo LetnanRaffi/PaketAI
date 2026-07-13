@@ -7,7 +7,6 @@ import { Package } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { 
   Inbox, 
-  CheckCircle2, 
   Clock, 
   Camera, 
   Users, 

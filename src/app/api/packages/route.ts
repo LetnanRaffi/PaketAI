@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireUserOrgId } from '@/lib/org';
 
 export async function GET(request: Request) {
   try {
+    const orgId = await requireUserOrgId();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const department = searchParams.get('department');
 
     const supabase = await createClient();
     
-    // We join the employees table to get the matched employee's full_name
     let query = supabase
       .from('packages')
       .select(`
@@ -23,6 +25,7 @@ export async function GET(request: Request) {
           created_at
         )
       `)
+      .eq('org_id', orgId)
       .order('received_at', { ascending: false });
 
     if (status && status !== 'semua') {
@@ -33,7 +36,6 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    // Filter by search term locally since Supabase text search on joined columns can be complex
     let filteredData = data;
     if (search) {
       const s = search.toLowerCase();
@@ -48,18 +50,28 @@ export async function GET(request: Request) {
       });
     }
 
+    if (department) {
+      filteredData = filteredData.filter((pkg: any) =>
+        pkg.employee?.department === department
+      );
+    }
+
     return NextResponse.json(filteredData);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const orgId = await requireUserOrgId();
     const body = await request.json();
     const supabase = await createClient();
 
-    // Get current user id
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -76,7 +88,8 @@ export async function POST(request: Request) {
           tracking_number: body.tracking_number,
           courier: body.courier,
           status: 'belum_diambil',
-          admin_id: user.id
+          admin_id: user.id,
+          org_id: orgId,
         },
       ])
       .select()
@@ -84,7 +97,11 @@ export async function POST(request: Request) {
 
     if (error) throw error;
     return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

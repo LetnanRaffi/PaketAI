@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 
 
 export default function Login() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -146,7 +145,10 @@ export default function Login() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-xs text-slate-400">
-          Versi 1.0 (Core MVP) &bull; PaketAI
+          Belum punya akun?{' '}
+          <Link href="/register" className="font-semibold text-indigo-600 hover:text-indigo-500">
+            Daftar Gratis
+          </Link>
         </p>
       </div>
     </div>

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireUserOrgId } from '@/lib/org';
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const orgId = await requireUserOrgId();
     const { id } = await params;
     const body = await request.json();
     const supabase = await createClient();
@@ -25,6 +27,7 @@ export async function PUT(
         phone_number: body.phone_number || null,
       })
       .eq('id', id)
+      .eq('org_id', orgId)
       .select()
       .single();
 
@@ -32,6 +35,9 @@ export async function PUT(
     return NextResponse.json(data);
   } catch (error: unknown) {
     const err = error as Error;
+    if (err.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -41,15 +47,23 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const orgId = await requireUserOrgId();
     const { id } = await params;
     const supabase = await createClient();
 
-    const { error } = await supabase.from('employees').delete().eq('id', id);
+    const { error } = await supabase
+      .from('employees')
+      .delete()
+      .eq('id', id)
+      .eq('org_id', orgId);
 
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const err = error as Error;
+    if (err.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

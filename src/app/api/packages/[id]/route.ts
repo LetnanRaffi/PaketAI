@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireUserOrgId } from '@/lib/org';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const orgId = await requireUserOrgId();
     const { id } = await params;
     const supabase = await createClient();
 
@@ -23,6 +25,7 @@ export async function GET(
         )
       `)
       .eq('id', id)
+      .eq('org_id', orgId)
       .single();
 
     if (error) throw error;
@@ -32,6 +35,9 @@ export async function GET(
 
     return NextResponse.json(data);
   } catch (error: any) {
+    if (error.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -41,11 +47,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const orgId = await requireUserOrgId();
     const { id } = await params;
     const body = await request.json();
     const supabase = await createClient();
 
-    // Only allow updating certain fields (status, picked up info)
     const updateData: any = {};
     if (body.status) updateData.status = body.status;
     if (body.picked_up_at) updateData.picked_up_at = body.picked_up_at;
@@ -55,6 +61,7 @@ export async function PATCH(
       .from('packages')
       .update(updateData)
       .eq('id', id)
+      .eq('org_id', orgId)
       .select(`
         *,
         employee:employees (
@@ -71,6 +78,9 @@ export async function PATCH(
     if (error) throw error;
     return NextResponse.json(data);
   } catch (error: any) {
+    if (error.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireUserOrgId } from '@/lib/org';
 import { getKeyPool, isRateLimitError, buildPrompt, matchEmployee } from '@/lib/gemini';
 
 const MODELS = ['gemini-2.5-flash', 'gemini-3-flash-preview'] as const;
 
 export async function POST(request: Request) {
   try {
+    const orgId = await requireUserOrgId();
     const { imageBase64 } = await request.json();
 
     if (!imageBase64) {
@@ -15,7 +17,6 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const pool = getKeyPool();
 
-    // 1. Prepare image data
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
@@ -27,16 +28,16 @@ export async function POST(request: Request) {
     const ext = mimeType.split('/')[1] || 'jpg';
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
 
-    // 2. Fetch employee names from DB for matching
+    // Fetch employee names scoped to org
     const { data: employees, error: empError } = await supabase
       .from('employees')
-      .select('id, full_name');
+      .select('id, full_name')
+      .eq('org_id', orgId);
 
     if (empError) throw empError;
 
     const employeeNames = employees?.map(e => e.full_name) || [];
 
-    // 3. Call Gemini API with key rotation + model fallback
     const systemInstruction = buildPrompt(employeeNames);
 
     const callGeminiWithKeyRotation = async (): Promise<string> => {
@@ -85,7 +86,6 @@ export async function POST(request: Request) {
       throw new Error('Semua API key Gemini sudah habis / rate-limited. Coba lagi nanti.');
     };
 
-    // Run Gemini + Upload in parallel
     const [responseText, publicUrl] = await Promise.all([
       callGeminiWithKeyRotation(),
       (async () => {
@@ -102,7 +102,6 @@ export async function POST(request: Request) {
       })()
     ]);
 
-    // 4. Parse Gemini response
     let aiData;
     try {
       aiData = JSON.parse(responseText);
@@ -115,14 +114,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Fuzzy employee matching
     const matched = matchEmployee(
       aiData.recipient_name_raw || '',
       aiData.matched_employee_name,
       employees || []
     );
 
-    // 6. Return combined data
     return NextResponse.json({
       receipt_image_url: publicUrl,
       recipient_name_raw: aiData.recipient_name_raw || '',
@@ -135,6 +132,9 @@ export async function POST(request: Request) {
 
   } catch (error: unknown) {
     const err = error as Error;
+    if (err.message === 'Unauthorized or no organization') {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('Scan API Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
