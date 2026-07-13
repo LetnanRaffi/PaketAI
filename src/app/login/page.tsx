@@ -31,10 +31,13 @@ export default function Login() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data.error || 'Gagal login. Periksa kredensial Anda.');
+        let errorMsg = 'Gagal login. Periksa kredensial Anda.';
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch { /* response body might not be JSON */ }
+        throw new Error(errorMsg);
       }
 
       window.location.href = '/';

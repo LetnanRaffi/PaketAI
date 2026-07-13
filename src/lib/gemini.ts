@@ -44,14 +44,19 @@ class GeminiKeyPool {
     }
 
     // Second pass: force reset the oldest rate-limited key
-    const oldest = this.keys.reduce((min, curr, i) =>
-      (curr.rateLimitedAt ?? 0) < (min.rateLimitedAt ?? 0) ? { ...curr, idx: i } : min,
-      { ...this.keys[0], idx: 0 }
-    );
-    console.warn(`[GeminiKeyPool] All keys rate-limited. Force-resetting key #${oldest.idx}`);
-    this.keys[oldest.idx].rateLimitedAt = null;
-    this.nextIndex = (oldest.idx + 1) % this.keys.length;
-    return { client: new GoogleGenAI({ apiKey: this.keys[oldest.idx].key }), keyIndex: oldest.idx };
+    let oldestIdx = 0;
+    let oldestTime = this.keys[0].rateLimitedAt ?? 0;
+    for (let i = 1; i < this.keys.length; i++) {
+      const t = this.keys[i].rateLimitedAt ?? 0;
+      if (t < oldestTime) {
+        oldestTime = t;
+        oldestIdx = i;
+      }
+    }
+    console.warn(`[GeminiKeyPool] All keys rate-limited. Force-resetting key #${oldestIdx}`);
+    this.keys[oldestIdx].rateLimitedAt = null;
+    this.nextIndex = (oldestIdx + 1) % this.keys.length;
+    return { client: new GoogleGenAI({ apiKey: this.keys[oldestIdx].key }), keyIndex: oldestIdx };
   }
 
   markRateLimited(keyIndex: number): void {
