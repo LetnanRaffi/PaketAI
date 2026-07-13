@@ -17,7 +17,7 @@ export default function BottomNav() {
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 mx-auto flex h-16 max-w-md items-center justify-around border-t border-slate-100 bg-white/95 px-2 backdrop-blur-md">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 mx-auto flex h-16 max-w-md items-center justify-around border-t border-outline-variant/30 bg-surface/95 px-2 backdrop-blur-md">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(item.href);
@@ -27,10 +27,10 @@ export default function BottomNav() {
             key={item.href}
             href={item.href}
             className={`flex flex-col items-center justify-center w-14 h-full transition-colors active:scale-95 duration-100 ${
-              active ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+              active ? 'text-primary' : 'text-on-surface-muted hover:text-on-surface-variant'
             }`}
           >
-            <Icon className="h-5 w-5 mb-1" />
+            <Icon className="h-5 w-5 mb-1" strokeWidth={active ? 2.5 : 2} />
             <span className="text-[10px] font-medium tracking-wide">{item.label}</span>
           </Link>
         );
@@ -39,7 +39,7 @@ export default function BottomNav() {
       {/* Center camera button */}
       <Link
         href="/scan"
-        className="group relative -top-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 transition-transform active:scale-95 duration-100"
+        className="group relative -top-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary shadow-[0_4px_20px_rgba(82,213,255,0.3)] transition-transform active:scale-95 duration-100"
         aria-label="Scan Resi"
       >
         <Camera className="h-6 w-6 transition-transform group-hover:scale-110" />
@@ -48,20 +48,20 @@ export default function BottomNav() {
       <Link
         href="/employees"
         className={`flex flex-col items-center justify-center w-14 h-full transition-colors active:scale-95 duration-100 ${
-          isActive('/employees') ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+          isActive('/employees') ? 'text-primary' : 'text-on-surface-muted hover:text-on-surface-variant'
         }`}
       >
-        <Users className="h-5 w-5 mb-1" />
+        <Users className="h-5 w-5 mb-1" strokeWidth={isActive('/employees') ? 2.5 : 2} />
         <span className="text-[10px] font-medium tracking-wide">Karyawan</span>
       </Link>
 
       <Link
         href="/account"
         className={`flex flex-col items-center justify-center w-14 h-full transition-colors active:scale-95 duration-100 ${
-          isActive('/account') ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+          isActive('/account') ? 'text-primary' : 'text-on-surface-muted hover:text-on-surface-variant'
         }`}
       >
-        <User className="h-5 w-5 mb-1" />
+        <User className="h-5 w-5 mb-1" strokeWidth={isActive('/account') ? 2.5 : 2} />
         <span className="text-[10px] font-medium tracking-wide">Akun</span>
       </Link>
     </nav>

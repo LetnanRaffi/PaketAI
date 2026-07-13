@@ -41,18 +41,18 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
   
   if (loading && !isLoginPage) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white text-slate-500 font-sans">
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-          <span className="text-sm font-medium">Memuat PaketAI...</span>
+      <div className="flex h-screen items-center justify-center bg-asphalt">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="text-sm font-medium text-on-surface-muted font-display">Memuat PaketAI...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
-      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col border-x border-slate-100 bg-white shadow-2xl shadow-slate-200/50 pb-20">
+    <div className="min-h-screen bg-asphalt flex flex-col antialiased">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-surface border-x border-outline-variant/30 pb-20">
         <main className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
           {children}
         </main>

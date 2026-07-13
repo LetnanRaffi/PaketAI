@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Settings, CreditCard, LogOut, User, ChevronDown, X } from 'lucide-react';
+import { CreditCard, LogOut, User, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function TopNav() {
@@ -37,7 +37,7 @@ export default function TopNav() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold hover:bg-indigo-200 transition-colors"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-container/30 text-primary text-xs font-bold hover:bg-primary-container/50 transition-colors"
       >
         {initials}
       </button>
@@ -45,38 +45,38 @@ export default function TopNav() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-xl border border-slate-100 bg-white shadow-xl shadow-slate-200/50 py-1.5 overflow-hidden">
-            <div className="px-3 py-2 border-b border-slate-100">
+          <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-xl border border-outline-variant/30 bg-surface-elevated shadow-2xl shadow-black/40 py-1.5 overflow-hidden">
+            <div className="px-3 py-2 border-b border-outline-variant/20">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-container/30 text-primary text-xs font-bold">
                   {initials}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 truncate">{email || 'Akun'}</p>
-                  <p className="text-[10px] text-slate-400">Admin</p>
+                  <p className="text-xs font-semibold text-on-surface truncate">{email || 'Akun'}</p>
+                  <p className="text-[10px] text-on-surface-muted">Admin</p>
                 </div>
               </div>
             </div>
             <div className="py-1">
               <Link
                 href="/billing"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-on-surface-variant hover:bg-surface-hover transition-colors"
               >
-                <CreditCard className="h-3.5 w-3.5 text-slate-400" />
+                <CreditCard className="h-3.5 w-3.5 text-on-surface-muted" />
                 Langganan & Pembayaran
               </Link>
               <Link
                 href="/employees"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-on-surface-variant hover:bg-surface-hover transition-colors"
               >
-                <User className="h-3.5 w-3.5 text-slate-400" />
+                <User className="h-3.5 w-3.5 text-on-surface-muted" />
                 Kelola Karyawan
               </Link>
             </div>
-            <div className="border-t border-slate-100 pt-1">
+            <div className="border-t border-outline-variant/20 pt-1">
               <button
                 onClick={handleLogout}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-error hover:bg-error-container/10 transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 Keluar

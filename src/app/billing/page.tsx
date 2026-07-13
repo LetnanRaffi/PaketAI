@@ -64,11 +64,11 @@ export default function Billing() {
   if (!info || info.error) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center min-h-[50vh] space-y-4">
-        <AlertCircle className="h-10 w-10 text-slate-300" />
-        <p className="text-sm text-slate-500">{info?.error || 'Gagal memuat data billing.'}</p>
+        <AlertCircle className="h-10 w-10 text-on-surface-muted/50" />
+        <p className="text-sm text-on-surface-muted">{info?.error || 'Gagal memuat data billing.'}</p>
         <button
           onClick={() => window.location.reload()}
-          className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+          className="text-xs font-semibold text-primary hover:text-primary/80"
         >
           Coba lagi
         </button>
@@ -84,34 +84,34 @@ export default function Billing() {
   return (
     <div className="flex flex-col space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Langganan</h1>
-        <p className="text-xs text-slate-500 mt-1">Kelola langganan PaketAI Anda</p>
+        <h1 className="text-xl font-bold text-on-surface font-display">Langganan</h1>
+        <p className="text-xs text-on-surface-muted mt-1">Kelola langganan PaketAI Anda</p>
       </div>
 
       {/* Status Card */}
       <div className={`rounded-2xl p-5 border ${
-        isActive ? 'bg-green-50 border-green-100' :
-        isTrial ? 'bg-indigo-50 border-indigo-100' :
-        'bg-red-50 border-red-100'
+        isActive ? 'bg-success/10 border-success/20' :
+        isTrial ? 'bg-primary/10 border-primary/20' :
+        'bg-error-container/10 border-error/20'
       }`}>
         <div className="flex items-start gap-3">
           {isActive ? (
-            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+            <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
           ) : isTrial ? (
-            <Clock className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+            <Clock className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           ) : (
-            <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+            <AlertCircle className="h-5 w-5 text-error shrink-0 mt-0.5" />
           )}
           <div className="flex-1">
             <p className={`text-sm font-semibold ${
-              isActive ? 'text-green-900' : isTrial ? 'text-indigo-900' : 'text-red-900'
+              isActive ? 'text-success' : isTrial ? 'text-primary' : 'text-error'
             }`}>
               {isActive && 'Langganan Aktif'}
               {isTrial && `Trial - ${info.days_remaining} hari tersisa`}
               {isExpired && 'Langganan Berakhir'}
             </p>
             <p className={`text-xs mt-1 ${
-              isActive ? 'text-green-700' : isTrial ? 'text-indigo-700' : 'text-red-700'
+              isActive ? 'text-on-surface-variant' : isTrial ? 'text-on-surface-variant' : 'text-on-surface-muted'
             }`}>
               {isActive && info.subscription?.current_period_end &&
                 `Berlaku hingga ${new Date(info.subscription.current_period_end).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
@@ -126,27 +126,27 @@ export default function Billing() {
       </div>
 
       {/* Pricing */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-xs">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Paket Langganan</h3>
+      <div className="rounded-2xl border border-outline-variant/20 bg-surface-elevated p-5">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-on-surface-muted label-caps">Paket Langganan</h3>
         <div className="mt-4 flex items-baseline gap-1">
-          <span className="text-3xl font-bold text-slate-900">Rp159.000</span>
-          <span className="text-sm text-slate-500">/bulan</span>
+          <span className="text-3xl font-bold text-on-surface font-display">Rp159.000</span>
+          <span className="text-sm text-on-surface-muted">/bulan</span>
         </div>
-        <ul className="mt-4 space-y-2 text-xs text-slate-600">
+        <ul className="mt-4 space-y-2 text-xs text-on-surface-variant">
           <li className="flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             AI scan resi tak terbatas
           </li>
           <li className="flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             Database karyawan unlimited
           </li>
           <li className="flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             Matching otomatis & batch scan
           </li>
           <li className="flex items-center gap-2">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             Dashboard & laporan paket
           </li>
         </ul>
@@ -156,20 +156,20 @@ export default function Billing() {
       {(isTrial || isExpired) && (
         <div className="space-y-4">
           {info.temanqris_url ? (
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-xs text-center space-y-4">
-              <p className="text-xs font-semibold text-slate-700">Selesaikan pembayaran:</p>
+            <div className="rounded-2xl border border-outline-variant/20 bg-surface-elevated p-5 text-center space-y-4">
+              <p className="text-xs font-semibold text-on-surface-variant">Selesaikan pembayaran:</p>
               <a
                 href={info.temanqris_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 py-2.5 px-6 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary py-2.5 px-6 text-sm font-semibold text-on-primary shadow-[0_4px_20px_rgba(82,213,255,0.25)] hover:brightness-110 transition-all font-display"
               >
                 <CreditCard className="h-4 w-4" />
                 <span>Buka Halaman Pembayaran</span>
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
               {info.temanqris_expires_at && (
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-on-surface-muted">
                   Link berakhir: {new Date(info.temanqris_expires_at).toLocaleString('id-ID')}
                 </p>
               )}
@@ -178,11 +178,11 @@ export default function Billing() {
             <button
               onClick={handlePay}
               disabled={creating}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors active:scale-98 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 px-4 text-sm font-semibold text-on-primary shadow-[0_4px_20px_rgba(82,213,255,0.25)] hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50 font-display"
             >
               {creating ? (
                 <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-on-primary border-t-transparent" />
                   <span>Memproses...</span>
                 </>
               ) : (
@@ -193,7 +193,7 @@ export default function Billing() {
               )}
             </button>
           )}
-          <p className="text-[10px] text-center text-slate-400">
+          <p className="text-[10px] text-center text-on-surface-muted">
             Pembayaran via QRIS (GoPay, OVO, DANA, ShopeePay, semua bank)
           </p>
         </div>

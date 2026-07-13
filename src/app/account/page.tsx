@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, CreditCard, Users, LogOut, ChevronRight, Building2, Mail, Clock, CheckCircle2 } from 'lucide-react';
+import { User, CreditCard, Users, LogOut, ChevronRight, Building2, Clock, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { AccountSkeleton } from '@/app/components/Skeleton';
 
@@ -41,14 +41,7 @@ export default function AccountPage() {
             days_remaining: data.days_remaining || 0,
           });
         } else {
-          setInfo({
-            email,
-            full_name: fullName,
-            org_name: '',
-            plan: 'trial',
-            trial_ends_at: null,
-            days_remaining: 0,
-          });
+          setInfo({ email, full_name: fullName, org_name: '', plan: 'trial', trial_ends_at: null, days_remaining: 0 });
         }
       } catch {
         const { data: { session } } = await supabase.auth.getSession();
@@ -86,18 +79,18 @@ export default function AccountPage() {
   return (
     <div className="flex flex-col space-y-6">
       {/* Profile Card */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-xs">
+      <div className="rounded-2xl border border-outline-variant/20 bg-surface-elevated p-5">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-lg font-bold">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary text-lg font-bold font-display">
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-900 truncate">{info?.full_name || 'Admin'}</p>
-            <p className="text-xs text-slate-500 truncate">{info?.email}</p>
+            <p className="text-sm font-bold text-on-surface truncate font-display">{info?.full_name || 'Admin'}</p>
+            <p className="text-xs text-on-surface-muted truncate">{info?.email}</p>
             {info?.org_name && (
               <div className="flex items-center gap-1 mt-1">
-                <Building2 className="h-3 w-3 text-slate-400" />
-                <p className="text-[11px] text-slate-400">{info.org_name}</p>
+                <Building2 className="h-3 w-3 text-on-surface-muted" />
+                <p className="text-[11px] text-on-surface-muted">{info.org_name}</p>
               </div>
             )}
           </div>
@@ -105,30 +98,30 @@ export default function AccountPage() {
       </div>
 
       {/* Subscription Status */}
-      <div className="rounded-2xl border border-slate-100 bg-white shadow-xs overflow-hidden">
+      <div className="rounded-2xl border border-outline-variant/20 bg-surface-elevated overflow-hidden">
         <div className="px-5 pt-4 pb-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Langganan</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-on-surface-muted label-caps">Langganan</h3>
         </div>
         <div className="px-5 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {info?.plan === 'active' ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <CheckCircle2 className="h-5 w-5 text-success" />
               ) : info?.plan === 'trial' ? (
-                <Clock className="h-5 w-5 text-indigo-600" />
+                <Clock className="h-5 w-5 text-primary" />
               ) : (
-                <CreditCard className="h-5 w-5 text-red-500" />
+                <CreditCard className="h-5 w-5 text-error" />
               )}
               <div>
-                <p className="text-sm font-semibold text-slate-900">{planLabel}</p>
+                <p className="text-sm font-semibold text-on-surface">{planLabel}</p>
                 {info?.plan === 'trial' && info.days_remaining > 0 && (
-                  <p className="text-[11px] text-slate-500">{info.days_remaining} hari tersisa</p>
+                  <p className="text-[11px] text-on-surface-muted">{info.days_remaining} hari tersisa</p>
                 )}
               </div>
             </div>
             <Link
               href="/billing"
-              className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+              className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80"
             >
               Detail
               <ChevronRight className="h-3.5 w-3.5" />
@@ -138,35 +131,35 @@ export default function AccountPage() {
       </div>
 
       {/* Menu Items */}
-      <div className="rounded-2xl border border-slate-100 bg-white shadow-xs overflow-hidden divide-y divide-slate-100">
+      <div className="rounded-2xl border border-outline-variant/20 bg-surface-elevated overflow-hidden divide-y divide-outline-variant/20">
         <Link
           href="/billing"
-          className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-3 px-5 py-4 hover:bg-surface-hover transition-colors"
         >
-          <CreditCard className="h-4 w-4 text-slate-400" />
-          <span className="flex-1 text-sm font-medium text-slate-700">Langganan & Pembayaran</span>
-          <ChevronRight className="h-4 w-4 text-slate-300" />
+          <CreditCard className="h-4 w-4 text-on-surface-muted" />
+          <span className="flex-1 text-sm font-medium text-on-surface-variant">Langganan & Pembayaran</span>
+          <ChevronRight className="h-4 w-4 text-on-surface-muted/50" />
         </Link>
         <Link
           href="/employees"
-          className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-3 px-5 py-4 hover:bg-surface-hover transition-colors"
         >
-          <Users className="h-4 w-4 text-slate-400" />
-          <span className="flex-1 text-sm font-medium text-slate-700">Kelola Karyawan</span>
-          <ChevronRight className="h-4 w-4 text-slate-300" />
+          <Users className="h-4 w-4 text-on-surface-muted" />
+          <span className="flex-1 text-sm font-medium text-on-surface-variant">Kelola Karyawan</span>
+          <ChevronRight className="h-4 w-4 text-on-surface-muted/50" />
         </Link>
       </div>
 
       {/* Logout */}
       <button
         onClick={handleLogout}
-        className="flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-white py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors shadow-xs"
+        className="flex items-center justify-center gap-2 rounded-2xl border border-error/20 bg-surface-elevated py-3 text-sm font-semibold text-error hover:bg-error-container/10 transition-colors"
       >
         <LogOut className="h-4 w-4" />
         Keluar
       </button>
 
-      <p className="text-center text-[10px] text-slate-300">PaketAI v1.0</p>
+      <p className="text-center text-[10px] text-on-surface-muted/40">PaketAI v1.0</p>
     </div>
   );
 }
