@@ -53,11 +53,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from login/register
-  if (
-    user &&
-    (pathname === '/login' || pathname === '/register')
-  ) {
+  // Redirect authenticated users away from login only
+  // (allow /register so users can always create new accounts)
+  if (user && pathname === '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
@@ -65,18 +63,30 @@ export async function updateSession(request: NextRequest) {
 
   // For authenticated users: check org status for billing gate
   if (user) {
-    const { data: userData } = await supabase
-      .from('users')
-      .select('org_id')
-      .eq('id', user.id)
-      .single();
-
-    if (userData?.org_id) {
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('plan, trial_ends_at')
-        .eq('id', userData.org_id)
+    let orgId: string | null = null;
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('org_id')
+        .eq('id', user.id)
         .single();
+      orgId = userData?.org_id ?? null;
+    } catch {
+      // users table may not exist yet (migration pending)
+    }
+
+    if (orgId) {
+      let org: { plan: string; trial_ends_at: string } | null = null;
+      try {
+        const result = await supabase
+          .from('organizations')
+          .select('plan, trial_ends_at')
+          .eq('id', orgId)
+          .single();
+        org = result.data;
+      } catch {
+        // organizations table may not exist yet
+      }
 
       if (org) {
         // Check if trial has ended
@@ -114,10 +124,16 @@ export async function updateSession(request: NextRequest) {
           !PUBLIC_PATHS.some((p) => pathname.startsWith(p))
         ) {
           // Check if onboarding was completed (employees exist)
-          const { count } = await supabase
-            .from('employees')
-            .select('id', { count: 'exact', head: true })
-            .eq('org_id', userData.org_id);
+          let count = 0;
+          try {
+            const result = await supabase
+              .from('employees')
+              .select('id', { count: 'exact', head: true })
+              .eq('org_id', orgId);
+            count = result.count ?? 0;
+          } catch {
+            // employees table may not exist yet
+          }
 
           // If no employees and not on onboarding, redirect to onboarding
           // Only on first visit (check URL param)
