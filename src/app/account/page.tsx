@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, CreditCard, Users, LogOut, ChevronRight, Building2, Mail, Clock, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { AccountSkeleton } from '@/app/components/Skeleton';
 
 interface AccountInfo {
   email: string;
@@ -73,8 +74,8 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+      <div className="flex flex-1 min-h-[50vh]">
+        <AccountSkeleton />
       </div>
     );
   }

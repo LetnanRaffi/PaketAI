@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Package } from '@/lib/types';
 import { Search, Inbox, ChevronRight, Calendar, Briefcase, ChevronDown } from 'lucide-react';
+import { PackagesSkeleton } from '@/app/components/Skeleton';
 
 export default function PackagesList() {
   const [packages, setPackages] = useState<Package[]>([]);
@@ -67,8 +68,8 @@ export default function PackagesList() {
 
   if (loading && packages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-white min-h-[50vh]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+      <div className="flex flex-1 bg-white min-h-[50vh]">
+        <PackagesSkeleton />
       </div>
     );
   }

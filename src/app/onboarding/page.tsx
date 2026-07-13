@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Users, Upload, ArrowRight, CheckCircle2, Building2, Camera, ArrowLeft, Sparkles, Zap } from 'lucide-react';
@@ -8,6 +8,11 @@ import { Users, Upload, ArrowRight, CheckCircle2, Building2, Camera, ArrowLeft, 
 export default function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+
+  // Mark onboarding as seen so middleware won't loop
+  useEffect(() => {
+    document.cookie = 'paketai_onboarded=1; path=/; max-age=31536000';
+  }, []);
   const [selectedPlan, setSelectedPlan] = useState<'trial' | 'pro'>('trial');
   const [employees, setEmployees] = useState<Array<{ full_name: string; department: string; phone_number: string }>>([]);
   const [csvInput, setCsvInput] = useState('');

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   TrendingUp
 } from 'lucide-react';
+import { DashboardSkeleton } from '@/app/components/Skeleton';
 
 export default function Dashboard() {
   const [packages, setPackages] = useState<Package[]>([]);
@@ -48,8 +49,8 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-white min-h-[50vh]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+      <div className="flex flex-1 bg-white min-h-[50vh]">
+        <DashboardSkeleton />
       </div>
     );
   }

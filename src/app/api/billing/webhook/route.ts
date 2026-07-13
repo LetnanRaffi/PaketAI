@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { verifyWebhookSignature } from '@/lib/temanqris';
 import { activateSubscription } from '@/lib/billing';
 import type { TemanQRISWebhookPayload } from '@/lib/temanqris';
@@ -23,8 +23,13 @@ export async function POST(request: NextRequest) {
     if (payload.event === 'payment.confirmed') {
       const orderId = payload.data.order_id;
 
+      // Use service role key for DB access (no auth cookies in webhook)
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
       // Find subscription by temanqris_order_id
-      const supabase = await createClient();
       const { data: sub } = await supabase
         .from('subscriptions')
         .select('org_id')
@@ -33,6 +38,9 @@ export async function POST(request: NextRequest) {
 
       if (sub?.org_id) {
         await activateSubscription(sub.org_id, orderId);
+        console.log(`[Webhook] Subscription activated for org ${sub.org_id}, order ${orderId}`);
+      } else {
+        console.warn(`[Webhook] No subscription found for order ${orderId}`);
       }
     }
 

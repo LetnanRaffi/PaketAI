@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Clock, CheckCircle2, AlertCircle, ExternalLink, FlaskConical } from 'lucide-react';
+import { CreditCard, Clock, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
+import { BillingSkeleton } from '@/app/components/Skeleton';
 
 interface BillingInfo {
   org: {
@@ -23,8 +24,6 @@ export default function Billing() {
   const [info, setInfo] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [testCreating, setTestCreating] = useState(false);
-  const [testUrl, setTestUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/billing/check-status')
@@ -54,24 +53,10 @@ export default function Billing() {
     setCreating(false);
   };
 
-  const handleTestPay = async () => {
-    setTestCreating(true);
-    try {
-      const res = await fetch('/api/billing/test-payment', { method: 'POST' });
-      const data = await res.json();
-      if (data.payment_url) {
-        setTestUrl(data.payment_url);
-      }
-    } catch {
-      alert('Gagal membuat test payment.');
-    }
-    setTestCreating(false);
-  };
-
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+      <div className="flex flex-1 min-h-[50vh]">
+        <BillingSkeleton />
       </div>
     );
   }
@@ -213,47 +198,6 @@ export default function Billing() {
           </p>
         </div>
       )}
-
-      {/* Test Payment */}
-      <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <FlaskConical className="h-4 w-4 text-amber-600" />
-          <p className="text-xs font-bold text-amber-800">Test Pembayaran</p>
-        </div>
-        <p className="text-[11px] text-amber-700 mb-3">
-          Buat link pembayaran Rp1 untuk testing integrasi TemanQRIS.
-        </p>
-        {testUrl ? (
-          <a
-            href={testUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-amber-600 py-2 px-4 text-xs font-semibold text-white hover:bg-amber-500 transition-colors"
-          >
-            <CreditCard className="h-3.5 w-3.5" />
-            <span>Buka Test Payment (Rp1)</span>
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        ) : (
-          <button
-            onClick={handleTestPay}
-            disabled={testCreating}
-            className="flex items-center gap-2 rounded-lg bg-amber-600 py-2 px-4 text-xs font-semibold text-white hover:bg-amber-500 transition-colors disabled:opacity-50"
-          >
-            {testCreating ? (
-              <>
-                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Memproses...</span>
-              </>
-            ) : (
-              <>
-                <FlaskConical className="h-3.5 w-3.5" />
-                <span>Buat Test Payment Rp1</span>
-              </>
-            )}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

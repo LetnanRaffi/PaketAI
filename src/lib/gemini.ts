@@ -122,17 +122,50 @@ export function matchEmployee(
     if (exact) return { id: exact.id, name: exact.full_name, confidence: 1.0 };
 
     const aiFirst = firstName(aiMatchedName);
-    const byAiFirst = employees.find(e => firstName(e.full_name) === aiFirst);
-    if (byAiFirst) return { id: byAiFirst.id, name: byAiFirst.full_name, confidence: 0.85 };
+    const byAiFirst = employees.filter(e => firstName(e.full_name) === aiFirst);
+    if (byAiFirst.length === 1) {
+      return { id: byAiFirst[0].id, name: byAiFirst[0].full_name, confidence: 0.85 };
+    }
+    if (byAiFirst.length > 1) {
+      // Multiple matches on first name — prefer the one whose full name
+      // starts with the AI-suggested name (handles partial matches like "Budi" vs "Budi Santoso")
+      const aiLower = aiMatchedName.toLowerCase();
+      const best = byAiFirst.find(e => e.full_name.toLowerCase().startsWith(aiLower));
+      if (best) return { id: best.id, name: best.full_name, confidence: 0.80 };
+      return { id: byAiFirst[0].id, name: byAiFirst[0].full_name, confidence: 0.70 };
+    }
   }
 
   let best: { id: string; name: string; confidence: number } | null = null;
+  let bestCount = 0;
   for (const emp of employees) {
     const empFirst = firstName(emp.full_name);
     const score = similarity(ocrFirst, empFirst);
     if (score >= 0.6 && (!best || score > best.confidence)) {
       best = { id: emp.id, name: emp.full_name, confidence: score };
+      bestCount = 1;
+    } else if (score >= 0.6 && best && score === best.confidence) {
+      bestCount++;
     }
+  }
+
+  // If there's a tie (multiple employees with same similarity score), prefer
+  // the one whose full name is closest in length to the OCR name
+  if (best && bestCount > 1) {
+    let closest = best;
+    let closestDist = Math.abs(ocrFirst.length - firstName(best.name).length);
+    for (const emp of employees) {
+      const empFirst = firstName(emp.full_name);
+      const score = similarity(ocrFirst, empFirst);
+      if (score === best.confidence) {
+        const dist = Math.abs(ocrFirst.length - empFirst.length);
+        if (dist < closestDist) {
+          closest = { id: emp.id, name: emp.full_name, confidence: score };
+          closestDist = dist;
+        }
+      }
+    }
+    return closest;
   }
 
   return best;
@@ -154,7 +187,7 @@ ATURAN PENTING PENCOCOKAN NAMA:
 - CONTOH: Jika resi tertulis "Mba Diva" dan di daftar ada "Diva Amanda", maka matched_employee_name = "Diva Amanda".
 - CONTOH: Jika resi tertulis "Bp Budi" dan di daftar ada "Budi Santoso", maka matched_employee_name = "Budi Santoso".
 - Selalu HAPUS sebutan/panggilan tersebut lalu cocokkan berdasarkan NAMA PERTAMA.
-- Jika ada beberapa karyawan dengan nama pertama yang sama, pilih yang paling cocok dari konteks di resi.
+- Jika ada beberapa karyawan dengan nama pertama yang SAMA, lihat departemen/ konteks tambahan dari resi untuk memilih yang paling tepat. Jika tidak bisa dipastikan, pilih yang paling umum / pertama dari daftar.
 
 Tugas:
 1. Ekstrak nama penerima (raw), nomor resi, dan ekspedisi (courier) dari gambar resi.
@@ -181,6 +214,7 @@ ATURAN PENTING PENCOCOKAN NAMA:
 - Nama di resi sering menggunakan sebutan/panggilan seperti "Mba", "Mas", "Bp", "Pak", "Ibu", "Sdr", "Sdri", dll.
 - CONTOH: Jika resi tertulis "Mba Diva" dan di daftar ada "Diva Amanda", maka matched_employee_name = "Diva Amanda".
 - Selalu HAPUS sebutan/panggilan tersebut lalu cocokkan berdasarkan NAMA PERTAMA.
+- Jika ada beberapa karyawan dengan nama pertama yang SAMA, lihat departemen/ konteks tambahan dari resi untuk memilih yang paling tepat. Jika tidak bisa dipastikan, pilih yang paling umum / pertama dari daftar.
 
 Tugas:
 Kamu akan menerima ${count} gambar resi. Untuk SETIAP gambar, ekstrak dan cocokkan.

@@ -31,12 +31,12 @@ export async function POST(request: Request) {
     // Fetch employee names scoped to org
     const { data: employees, error: empError } = await supabase
       .from('employees')
-      .select('id, full_name')
+      .select('id, full_name, department')
       .eq('org_id', orgId);
 
     if (empError) throw empError;
 
-    const employeeNames = employees?.map(e => e.full_name) || [];
+    const employeeNames = employees?.map(e => `${e.full_name} [${e.department || 'Umum'}]`) || [];
 
     const systemInstruction = buildPrompt(employeeNames);
 

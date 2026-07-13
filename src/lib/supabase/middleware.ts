@@ -114,6 +114,33 @@ export async function updateSession(request: NextRequest) {
             return NextResponse.redirect(url);
           }
         }
+
+        // Redirect to onboarding only once (use cookie to prevent loops)
+        if (
+          org.plan === 'trial' &&
+          !pathname.startsWith('/onboarding') &&
+          !pathname.startsWith('/api') &&
+          !PUBLIC_PATHS.some((p) => pathname.startsWith(p))
+        ) {
+          const hasOnboarded = request.cookies.get('paketai_onboarded')?.value === '1';
+          if (!hasOnboarded) {
+            let count = 0;
+            try {
+              const result = await supabase
+                .from('employees')
+                .select('id', { count: 'exact', head: true })
+                .eq('org_id', orgId);
+              count = result.count ?? 0;
+            } catch {
+              // employees table may not exist yet
+            }
+            if (count === 0) {
+              const url = request.nextUrl.clone();
+              url.pathname = '/onboarding';
+              return NextResponse.redirect(url);
+            }
+          }
+        }
       }
     }
   }

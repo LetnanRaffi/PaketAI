@@ -14,6 +14,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PackageDetailSkeleton } from '@/app/components/Skeleton';
 
 export default function PackageDetail() {
   const router = useRouter();
@@ -47,8 +48,8 @@ export default function PackageDetail() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-white min-h-[50vh]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+      <div className="flex flex-1 bg-white min-h-[50vh]">
+        <PackageDetailSkeleton />
       </div>
     );
   }
