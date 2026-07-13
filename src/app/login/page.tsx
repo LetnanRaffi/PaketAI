@@ -49,18 +49,16 @@ export default function Login() {
   return (
     <div className="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6">
       <div className="mx-auto w-full max-w-sm">
-        {/* Brand */}
-        <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-on-primary shadow-[0_4px_20px_rgba(82,213,255,0.3)]">
-            <span className="text-xl font-bold tracking-wider font-display">P</span>
+          {/* Brand */}
+          <div className="flex flex-col items-center text-center">
+            <img src="/logo.png" alt="PaketAI Logo" className="h-12 w-12 rounded-xl object-contain shadow-[0_4px_20px_rgba(82,213,255,0.3)]" />
+            <h2 className="mt-6 text-2xl font-bold tracking-tight text-on-surface font-display">
+              PaketAI
+            </h2>
+            <p className="mt-1 text-sm text-on-surface-muted">
+              Sistem Mailroom Cerdas & Otomatis
+            </p>
           </div>
-          <h2 className="mt-6 text-2xl font-bold tracking-tight text-on-surface font-display">
-            PaketAI
-          </h2>
-          <p className="mt-1 text-sm text-on-surface-muted">
-            Sistem Mailroom Cerdas & Otomatis
-          </p>
-        </div>
 
         {/* Login Card */}
         <div className="mt-8 bg-surface-elevated px-4 py-8 border border-outline-variant/20 rounded-2xl sm:px-6">

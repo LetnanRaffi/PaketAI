@@ -43,7 +43,7 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
     return (
       <div className="flex h-screen items-center justify-center bg-asphalt">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <img src="/logo.png" alt="PaketAI Logo" className="h-10 w-10 rounded-xl object-contain" />
           <span className="text-sm font-medium text-on-surface-muted font-display">Memuat PaketAI...</span>
         </div>
       </div>

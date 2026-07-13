@@ -82,9 +82,7 @@ export default function Register() {
         ) : (
         <>
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-on-primary shadow-[0_4px_20px_rgba(82,213,255,0.3)]">
-            <span className="text-xl font-bold tracking-wider font-display">P</span>
-          </div>
+          <img src="/logo.png" alt="PaketAI Logo" className="h-12 w-12 rounded-xl object-contain shadow-[0_4px_20px_rgba(82,213,255,0.3)]" />
           <h2 className="mt-6 text-2xl font-bold tracking-tight text-on-surface font-display">
             Buat Akun PaketAI
           </h2>
