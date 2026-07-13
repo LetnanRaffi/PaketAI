@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Package, Employee } from '@/lib/types';
 import { 
@@ -11,11 +11,7 @@ import {
   Phone, 
   Tag, 
   FileText, 
-  CheckCircle,
-  X,
-  Lock,
-  Edit3,
-  QrCode
+  CheckCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -27,18 +23,7 @@ export default function PackageDetail() {
   const [pkg, setPkg] = useState<Package | null>(null);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Modal Verification states
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verificationMethod, setVerificationMethod] = useState<'pin' | 'signature' | 'qr'>('pin');
-  const [isVerifying, setIsVerifying] = useState(false);
-  
-  // PIN states
-  const [pinDigits, setPinDigits] = useState<string[]>([]);
-  
-  // Signature States
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     const fetchPackage = async () => {
@@ -59,20 +44,6 @@ export default function PackageDetail() {
     };
     fetchPackage();
   }, [pkgId]);
-
-  // Set up Canvas events when method changes to signature
-  useEffect(() => {
-    if (verificationMethod === 'signature' && showVerifyModal && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.strokeStyle = '#334155'; // Slate-700
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-      }
-    }
-  }, [verificationMethod, showVerifyModal]);
 
   if (loading) {
     return (
@@ -96,76 +67,8 @@ export default function PackageDetail() {
     );
   }
 
-  // --- Signature Canvas Handlers ---
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
-    setIsDrawing(true);
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    ctx.lineTo(clientX - rect.left, clientY - rect.top);
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  // --- Verification Submission ---
-  const handleVerify = async () => {
-    if (verificationMethod === 'pin' && pinDigits.length < 4) {
-      alert('Masukkan 4 digit PIN verifikasi.');
-      return;
-    }
-
-    setIsVerifying(true);
-
+  const handleConfirmPickup = async () => {
+    setIsConfirming(true);
     try {
       const res = await fetch(`/api/packages/${pkg.id}`, {
         method: 'PATCH',
@@ -173,40 +76,28 @@ export default function PackageDetail() {
         body: JSON.stringify({
           status: 'sudah_diambil',
           picked_up_at: new Date().toISOString(),
-          picked_up_verification: verificationMethod,
         }),
       });
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to update package');
+        throw new Error(error.error || 'Gagal mengubah status paket');
       }
 
       const updatedPkg = await res.json();
       setPkg(updatedPkg);
 
-      // Close Modal & Trigger Celebration Confetti
-      setShowVerifyModal(false);
       confetti({
         particleCount: 150,
         spread: 60,
         origin: { y: 0.7 }
       });
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert(error.message);
     } finally {
-      setIsVerifying(false);
+      setIsConfirming(false);
     }
-  };
-
-  const handlePinInput = (num: number) => {
-    if (pinDigits.length < 4) {
-      setPinDigits([...pinDigits, num.toString()]);
-    }
-  };
-
-  const handlePinDelete = () => {
-    setPinDigits(pinDigits.slice(0, -1));
   };
 
   const formattedDateReceived = new Date(pkg.received_at).toLocaleDateString('id-ID', {
@@ -358,7 +249,7 @@ export default function PackageDetail() {
           )}
         </div>
 
-        {/* Pickup Verification Info if Status is Picked Up */}
+        {/* Pickup Info if Picked Up */}
         {pkg.status === 'sudah_diambil' && (
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Informasi Pengambilan</h3>
@@ -370,16 +261,9 @@ export default function PackageDetail() {
                   <p className="text-xs font-bold text-green-900">Selesai Diserahkan</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-green-100/50">
-                <div>
-                  <span className="text-[9px] font-bold text-green-700 uppercase">Waktu Ambil</span>
-                  <p className="text-xs font-semibold text-green-800">{formattedDatePickedUp}</p>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-green-700 uppercase">Metode Verifikasi</span>
-                  <p className="text-xs font-semibold text-green-800 capitalize">{pkg.picked_up_verification}</p>
-                </div>
+              <div className="pt-2 border-t border-green-100/50">
+                <span className="text-[9px] font-bold text-green-700 uppercase">Waktu Ambil</span>
+                <p className="text-xs font-semibold text-green-800">{formattedDatePickedUp}</p>
               </div>
             </div>
           </div>
@@ -390,187 +274,22 @@ export default function PackageDetail() {
       {pkg.status === 'belum_diambil' && (
         <div className="pt-4 pb-8">
           <button
-            onClick={() => setShowVerifyModal(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/10 hover:bg-indigo-500 transition-colors active:scale-98"
+            onClick={handleConfirmPickup}
+            disabled={isConfirming}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/10 hover:bg-indigo-500 transition-colors active:scale-98 disabled:opacity-50"
           >
-            <CheckCircle className="h-4.5 w-4.5" />
-            <span>Konfirmasi Pengambilan</span>
+            {isConfirming ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <span>Memproses...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4.5 w-4.5" />
+                <span>Sudah Diambil</span>
+              </>
+            )}
           </button>
-        </div>
-      )}
-
-      {/* --- Verification Sheet Modal --- */}
-      {showVerifyModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs">
-          <div className="relative w-full max-w-md rounded-t-3xl bg-white px-5 py-6 space-y-5 animate-in slide-in-from-bottom duration-300">
-            {/* Grab handle */}
-            <div className="mx-auto h-1 w-12 rounded-full bg-slate-200" />
-            
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Verifikasi Ambil Paket</h3>
-                <p className="text-[11px] text-slate-500 font-medium">Pilih metode autentikasi serah terima</p>
-              </div>
-              <button 
-                onClick={() => setShowVerifyModal(false)}
-                className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors text-slate-500"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-
-            {/* Selector Tabs */}
-            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-              {(['pin', 'signature', 'qr'] as const).map((method) => (
-                <button
-                  key={method}
-                  type="button"
-                  onClick={() => setVerificationMethod(method)}
-                  className={`flex flex-col items-center justify-center py-2.5 rounded-lg text-center transition-colors ${
-                    verificationMethod === method
-                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/50'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {method === 'pin' && <Lock className="h-4 w-4 mb-1" />}
-                  {method === 'signature' && <Edit3 className="h-4 w-4 mb-1" />}
-                  {method === 'qr' && <QrCode className="h-4 w-4 mb-1" />}
-                  <span className="text-[9px] font-bold uppercase tracking-wider">
-                    {method === 'pin' ? 'PIN' : method === 'signature' ? 'Tangan' : 'QR Scan'}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Method Details Pane */}
-            <div className="min-h-[220px] flex items-center justify-center">
-              {/* 1. PIN Keypad Panel */}
-              {verificationMethod === 'pin' && (
-                <div className="w-full space-y-4">
-                  <div className="flex justify-center gap-3.5">
-                    {[0, 1, 2, 3].map((idx) => (
-                      <div 
-                        key={idx}
-                        className={`h-3 w-3 rounded-full border border-slate-300 transition-all ${
-                          pinDigits[idx] ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-slate-50'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => handlePinInput(num)}
-                        className="py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-800 active:bg-slate-200 transition-colors"
-                      >
-                        {num}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setPinDigits([])}
-                      className="py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handlePinInput(0)}
-                      className="py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-800 active:bg-slate-200 transition-colors"
-                    >
-                      0
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handlePinDelete}
-                      className="py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
-                    >
-                      Del
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 2. Signature Drawer Panel */}
-              {verificationMethod === 'signature' && (
-                <div className="w-full space-y-3">
-                  <div className="relative border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
-                    <canvas
-                      ref={canvasRef}
-                      width={350}
-                      height={180}
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseLeave={stopDrawing}
-                      onTouchStart={startDrawing}
-                      onTouchMove={draw}
-                      onTouchEnd={stopDrawing}
-                      className="w-full h-[180px] cursor-crosshair touch-none"
-                    />
-                    <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-slate-400">
-                      Tanda tangan di atas canvas ini
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <button
-                      type="button"
-                      onClick={clearCanvas}
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-500"
-                    >
-                      Hapus Tanda Tangan
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Mock QR Scanning feed */}
-              {verificationMethod === 'qr' && (
-                <div className="w-full max-w-[280px] flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-2xl bg-slate-50 p-6 space-y-4">
-                  <div className="relative h-28 w-28 border-2 border-indigo-600/30 rounded-2xl flex items-center justify-center p-3">
-                    <QrCode className="h-full w-full text-slate-300 animate-pulse" />
-                    <div className="absolute -top-1.5 -left-1.5 h-4 w-4 border-t-2 border-l-2 border-indigo-600" />
-                    <div className="absolute -top-1.5 -right-1.5 h-4 w-4 border-t-2 border-r-2 border-indigo-600" />
-                    <div className="absolute -bottom-1.5 -left-1.5 h-4 w-4 border-b-2 border-l-2 border-indigo-600" />
-                    <div className="absolute -bottom-1.5 -right-1.5 h-4 w-4 border-b-2 border-r-2 border-indigo-600" />
-                  </div>
-                  <div className="text-center space-y-1">
-                    <p className="text-xs font-bold text-slate-800">Menunggu QR Card...</p>
-                    <p className="text-[10px] text-slate-400">Dekatkan kartu QR karyawan ke kamera depan</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Action Verify CTA */}
-            <div className="pt-2 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowVerifyModal(false)}
-                className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Kembali
-              </button>
-              <button
-                type="button"
-                onClick={handleVerify}
-                disabled={isVerifying}
-                className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-500 transition-colors flex justify-center items-center gap-2"
-              >
-                {isVerifying ? (
-                  <>
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Loading...</span>
-                  </>
-                ) : (
-                  <span>Konfirmasi Penyerahan</span>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
