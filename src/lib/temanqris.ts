@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
 const TEMANQRIS_BASE_URL = 'https://temanqris.com/api/qris';
 
 function getApiKey(): string {
@@ -187,11 +189,11 @@ export function verifyWebhookSignature(
 ): boolean {
   const expected =
     'sha256=' +
-    crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    createHmac('sha256', secret).update(payload).digest('hex');
   const received = Buffer.from(signature || '');
   const expectedBuffer = Buffer.from(expected);
   return (
     received.length === expectedBuffer.length &&
-    crypto.timingSafeEqual(received, expectedBuffer)
+    timingSafeEqual(received, expectedBuffer)
   );
 }
