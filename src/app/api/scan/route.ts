@@ -78,22 +78,38 @@ Format JSON yang diharapkan:
   "match_confidence": 0.0 (0 sampai 1.0)
 }`;
 
-    // 4. Call Gemini API
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: [
-        systemInstruction,
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
+    // 4. Call Gemini API with fallback
+    const models = ['gemini-3-flash-preview', 'gemini-2.5-flash'];
+    let response;
+    let lastError;
+
+    for (const model of models) {
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: [
+            systemInstruction,
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: mimeType
+              }
+            }
+          ],
+          config: {
+            responseMimeType: 'application/json',
           }
-        }
-      ],
-      config: {
-        responseMimeType: 'application/json',
+        });
+        break;
+      } catch (err: unknown) {
+        lastError = err;
+        console.warn(`Model ${model} failed, trying next...`);
       }
-    });
+    }
+
+    if (!response) {
+      throw lastError || new Error('All Gemini models failed');
+    }
 
     const responseText = response.text;
     if (!responseText) {
@@ -104,7 +120,7 @@ Format JSON yang diharapkan:
     let aiData;
     try {
       aiData = JSON.parse(responseText);
-    } catch (e) {
+    } catch {
       // Sometimes models wrap json in markdown blocks despite instructions
       const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
       if (jsonMatch) {
@@ -140,8 +156,9 @@ Format JSON yang diharapkan:
       match_confidence: aiData.match_confidence || 0
     });
 
-  } catch (error: any) {
-    console.error('Scan API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Scan API Error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
