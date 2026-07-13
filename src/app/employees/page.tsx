@@ -2,17 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { Employee } from '@/lib/types';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Upload, 
-  X, 
+import {
+  Users,
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Upload,
+  X,
   Briefcase,
   Phone,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 
 export default function EmployeesManagement() {
@@ -20,22 +20,16 @@ export default function EmployeesManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modals state
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Active edit item state (null = creating new)
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
-  // Form Fields
   const [fullName, setFullName] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
   const [department, setDepartment] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [formError, setFormError] = useState('');
 
-  // Bulk Import state
   const [csvText, setCsvText] = useState('');
   const [importError, setImportError] = useState('');
 
@@ -65,11 +59,9 @@ export default function EmployeesManagement() {
     );
   }
 
-  // --- CRUD Handlers ---
   const openAddModal = () => {
     setEditingEmployee(null);
     setFullName('');
-    setEmployeeId('');
     setDepartment('');
     setPhoneNumber('');
     setFormError('');
@@ -79,9 +71,8 @@ export default function EmployeesManagement() {
   const openEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
     setFullName(emp.full_name);
-    setEmployeeId(emp.employee_id);
-    setDepartment(emp.department);
-    setPhoneNumber(emp.phone_number);
+    setDepartment(emp.department || '');
+    setPhoneNumber(emp.phone_number || '');
     setFormError('');
     setShowAddEditModal(true);
   };
@@ -90,8 +81,8 @@ export default function EmployeesManagement() {
     e.preventDefault();
     setFormError('');
 
-    if (!fullName || !employeeId) {
-      setFormError('Nama lengkap dan NIK wajib diisi.');
+    if (!fullName.trim()) {
+      setFormError('Nama lengkap wajib diisi.');
       return;
     }
 
@@ -99,10 +90,9 @@ export default function EmployeesManagement() {
 
     try {
       const payload = {
-        full_name: fullName,
-        employee_id: employeeId,
-        department,
-        phone_number: phoneNumber,
+        full_name: fullName.trim(),
+        department: department.trim() || null,
+        phone_number: phoneNumber.trim() || null,
       };
 
       const url = editingEmployee ? `/api/employees/${editingEmployee.id}` : '/api/employees';
@@ -122,8 +112,9 @@ export default function EmployeesManagement() {
 
       await fetchEmployees();
       setShowAddEditModal(false);
-    } catch (err: any) {
-      setFormError(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      setFormError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -135,13 +126,12 @@ export default function EmployeesManagement() {
         const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Failed to delete');
         await fetchEmployees();
-      } catch (err) {
+      } catch {
         alert('Gagal menghapus karyawan');
       }
     }
   };
 
-  // --- CSV Bulk Import Handler ---
   const handleBulkImport = async (e: React.FormEvent) => {
     e.preventDefault();
     setImportError('');
@@ -170,20 +160,20 @@ export default function EmployeesManagement() {
       setShowImportModal(false);
       await fetchEmployees();
       alert(`Berhasil mengimpor ${data.count} data karyawan!`);
-    } catch (err: any) {
-      setImportError(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      setImportError(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Filter Logic
   const filteredEmployees = employees.filter((emp) => {
     const s = searchTerm.toLowerCase();
     return (
       emp.full_name.toLowerCase().includes(s) ||
-      emp.employee_id.toLowerCase().includes(s) ||
-      emp.department?.toLowerCase().includes(s)
+      emp.department?.toLowerCase().includes(s) ||
+      emp.phone_number?.toLowerCase().includes(s)
     );
   });
 
@@ -220,7 +210,7 @@ export default function EmployeesManagement() {
         </div>
         <input
           type="text"
-          placeholder="Cari NIK, nama, atau departemen..."
+          placeholder="Cari nama, departemen, atau nomor HP..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-sm text-slate-900 focus:border-indigo-600 focus:bg-white focus:ring-0 transition-colors"
@@ -249,14 +239,9 @@ export default function EmployeesManagement() {
                 className="flex items-center justify-between p-4 hover:bg-slate-50/20 transition-colors"
               >
                 <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-slate-900 truncate">
-                      {emp.full_name}
-                    </h4>
-                    <span className="shrink-0 inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.2 text-[8px] font-semibold text-slate-600">
-                      {emp.employee_id}
-                    </span>
-                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 truncate">
+                    {emp.full_name}
+                  </h4>
 
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400 font-medium">
                     <span className="flex items-center gap-1">
@@ -272,7 +257,6 @@ export default function EmployeesManagement() {
                   </div>
                 </div>
 
-                {/* Edit / Delete actions */}
                 <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
                   <button
                     onClick={() => openEditModal(emp)}
@@ -295,7 +279,7 @@ export default function EmployeesManagement() {
         </div>
       )}
 
-      {/* --- Dialog 1: Add/Edit Employee Modal --- */}
+      {/* Add/Edit Modal */}
       {showAddEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 border border-slate-100 shadow-xl space-y-4 animate-in zoom-in-95 duration-200">
@@ -303,7 +287,7 @@ export default function EmployeesManagement() {
               <h3 className="text-sm font-bold text-slate-900">
                 {editingEmployee ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}
               </h3>
-              <button 
+              <button
                 onClick={() => setShowAddEditModal(false)}
                 className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
               >
@@ -326,18 +310,6 @@ export default function EmployeesManagement() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Budi Santoso"
-                  className="mt-1 block w-full rounded-lg border border-slate-200 py-2 px-3 text-xs text-slate-900 focus:border-indigo-600 transition-colors"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">NIK / ID Karyawan</label>
-                <input
-                  type="text"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  placeholder="NIK2026101"
                   className="mt-1 block w-full rounded-lg border border-slate-200 py-2 px-3 text-xs text-slate-900 focus:border-indigo-600 transition-colors"
                   required
                 />
@@ -386,13 +358,13 @@ export default function EmployeesManagement() {
         </div>
       )}
 
-      {/* --- Dialog 2: CSV Bulk Import Modal --- */}
+      {/* CSV Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 border border-slate-100 shadow-xl space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900">Import Karyawan Massal</h3>
-              <button 
+              <button
                 onClick={() => setShowImportModal(false)}
                 className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
               >
@@ -411,9 +383,9 @@ export default function EmployeesManagement() {
               <div className="space-y-1">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Format Data</label>
                 <p className="text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  Format: <code className="font-semibold text-slate-700">Nama Lengkap, NIK, Departemen, Telepon</code>
+                  Format: <code className="font-semibold text-slate-700">Nama Lengkap, Departemen, Telepon</code>
                   <br />
-                  Satu baris mewakili satu karyawan.
+                  Minimal isi nama. Satu baris = satu karyawan.
                 </p>
               </div>
 
@@ -423,7 +395,7 @@ export default function EmployeesManagement() {
                   rows={6}
                   value={csvText}
                   onChange={(e) => setCsvText(e.target.value)}
-                  placeholder="Supriyadi Purwo, NIK2026110, Produksi A, 0812999000&#10;Melia Sari, NIK2026111, HRD, 0812999001"
+                  placeholder="Budi Santoso, Produksi A, 0812999000&#10;Sari Dewi, HRD, 0812999001&#10;Andi Wijaya"
                   className="block w-full rounded-lg border border-slate-200 py-2 px-3 text-xs text-slate-900 font-mono focus:border-indigo-600 focus:ring-0 transition-colors"
                   required
                 />

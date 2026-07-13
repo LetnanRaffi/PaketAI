@@ -10,17 +10,9 @@ export async function PUT(
     const body = await request.json();
     const supabase = await createClient();
 
-    // Check for duplicate employee_id excluding current one
-    const { data: existing } = await supabase
-      .from('employees')
-      .select('id')
-      .eq('employee_id', body.employee_id)
-      .neq('id', id)
-      .single();
-
-    if (existing) {
+    if (!body.full_name?.trim()) {
       return NextResponse.json(
-        { error: 'NIK sudah digunakan oleh karyawan lain.' },
+        { error: 'Nama lengkap wajib diisi.' },
         { status: 400 }
       );
     }
@@ -29,9 +21,8 @@ export async function PUT(
       .from('employees')
       .update({
         full_name: body.full_name,
-        employee_id: body.employee_id,
-        department: body.department,
-        phone_number: body.phone_number,
+        department: body.department || null,
+        phone_number: body.phone_number || null,
       })
       .eq('id', id)
       .select()
@@ -39,8 +30,9 @@ export async function PUT(
 
     if (error) throw error;
     return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -56,7 +48,8 @@ export async function DELETE(
 
     if (error) throw error;
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -242,7 +242,8 @@ export default function ScanPackage() {
     employees.filter(
       emp =>
         emp.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.employee_id.toLowerCase().includes(searchTerm.toLowerCase())
+        emp.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.phone_number?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   // Save all packages
@@ -677,7 +678,7 @@ function ReviewCard({
                     >
                       <span className="text-[11px] font-bold text-slate-800">{emp.full_name}</span>
                       <span className="text-[9px] text-slate-400">
-                        {emp.employee_id} &bull; {emp.department}
+                        {emp.department || 'Tanpa Departemen'}
                       </span>
                     </button>
                   ))

@@ -12,21 +12,21 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    
-    // Fetch existing employee IDs for deduplication
+
+    // Fetch existing employee names for deduplication
     const { data: existingEmployees, error: fetchError } = await supabase
       .from('employees')
-      .select('employee_id');
+      .select('full_name');
 
     if (fetchError) throw fetchError;
-    
-    const existingIds = new Set(
-      existingEmployees?.map(e => e.employee_id.toLowerCase()) || []
+
+    const existingNames = new Set(
+      existingEmployees?.map(e => e.full_name.toLowerCase().trim()) || []
     );
 
     const lines = csvText.split('\n');
     const newEmployees = [];
-    const importIds = new Set();
+    const importNames = new Set();
     let lineIdx = 0;
 
     for (const line of lines) {
@@ -34,33 +34,32 @@ export async function POST(request: Request) {
       if (!line.trim()) continue;
 
       const parts = line.split(',').map((p: string) => p.trim());
-      if (parts.length < 2) {
+      if (parts.length < 1 || !parts[0]) {
         return NextResponse.json(
-          { error: `Format baris ${lineIdx} salah. Wajib berisi minimal: Nama Lengkap, NIK` },
+          { error: `Baris ${lineIdx}: format salah. Minimal berisi nama.` },
           { status: 400 }
         );
       }
 
-      const [full_name, employee_id, department = '', phone_number = ''] = parts;
-      const lowerId = employee_id.toLowerCase();
+      const [full_name, department = '', phone_number = ''] = parts;
+      const lowerName = full_name.toLowerCase().trim();
 
-      // Skip if it's already in DB or already in the import list
-      if (existingIds.has(lowerId) || importIds.has(lowerId)) {
+      // Skip if duplicate
+      if (existingNames.has(lowerName) || importNames.has(lowerName)) {
         continue;
       }
 
-      importIds.add(lowerId);
+      importNames.add(lowerName);
       newEmployees.push({
-        full_name,
-        employee_id,
-        department,
-        phone_number,
+        full_name: full_name.trim(),
+        department: department.trim() || null,
+        phone_number: phone_number.trim() || null,
       });
     }
 
     if (newEmployees.length === 0) {
       return NextResponse.json(
-        { error: 'Semua baris diabaikan (mungkin NIK duplikat atau format tidak cocok).' },
+        { error: 'Semua baris diabaikan (nama duplikat atau format tidak cocok).' },
         { status: 400 }
       );
     }
@@ -77,7 +76,8 @@ export async function POST(request: Request) {
       count: data.length,
       data
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

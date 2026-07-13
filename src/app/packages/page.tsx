@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Package } from '@/lib/types';
-import { Search, Inbox, ChevronRight, Calendar } from 'lucide-react';
+import { Search, Inbox, ChevronRight, Calendar, Briefcase, ChevronDown } from 'lucide-react';
 
 export default function PackagesList() {
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'semua' | 'belum_diambil' | 'sudah_diambil'>('semua');
+  const [deptFilter, setDeptFilter] = useState('semua');
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -40,13 +41,29 @@ export default function PackagesList() {
       }
     };
 
-    // Debounce the API call slightly if searching
     const timer = setTimeout(() => {
       fetchPackages();
     }, 300);
 
     return () => clearTimeout(timer);
   }, [statusFilter, searchTerm]);
+
+  // Extract unique departments from packages
+  const departments = useMemo(() => {
+    const deptSet = new Set<string>();
+    for (const pkg of packages) {
+      if (pkg.employee?.department) {
+        deptSet.add(pkg.employee.department);
+      }
+    }
+    return Array.from(deptSet).sort();
+  }, [packages]);
+
+  // Apply department filter client-side
+  const filteredPackages = useMemo(() => {
+    if (deptFilter === 'semua') return packages;
+    return packages.filter(pkg => pkg.employee?.department === deptFilter);
+  }, [packages, deptFilter]);
 
   if (loading && packages.length === 0) {
     return (
@@ -95,24 +112,76 @@ export default function PackagesList() {
         ))}
       </div>
 
+      {/* Department Filter */}
+      {departments.length > 0 && (
+        <div className="relative">
+          <button
+            onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors w-full"
+          >
+            <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+            <span className="flex-1 text-left">
+              {deptFilter === 'semua' ? 'Semua Departemen' : deptFilter}
+            </span>
+            {deptFilter !== 'semua' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeptFilter('semua');
+                }}
+                className="text-[10px] font-bold text-slate-400 hover:text-slate-600"
+              >
+                Reset
+              </button>
+            )}
+            <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${showDeptDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showDeptDropdown && (
+            <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              <button
+                onClick={() => { setDeptFilter('semua'); setShowDeptDropdown(false); }}
+                className={`w-full px-4 py-2 text-left text-xs font-semibold transition-colors ${
+                  deptFilter === 'semua' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                Semua Departemen
+              </button>
+              {departments.map((dept) => (
+                <button
+                  key={dept}
+                  onClick={() => { setDeptFilter(dept); setShowDeptDropdown(false); }}
+                  className={`w-full px-4 py-2 text-left text-xs font-semibold transition-colors ${
+                    deptFilter === dept ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {dept}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* List Container */}
-      {packages.length === 0 ? (
+      {filteredPackages.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-16 px-4 text-center bg-slate-50/50">
           <Inbox className="h-10 w-10 text-slate-300 mb-2" />
           <h3 className="text-sm font-bold text-slate-800">Paket Tidak Ditemukan</h3>
           <p className="text-xs text-slate-400 max-w-xs mt-1">
-            Silakan ganti kata kunci pencarian atau bersihkan filter status.
+            Silakan ganti filter atau kata kunci pencarian.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Daftar Paket ({packages.length})
+            Daftar Paket ({filteredPackages.length})
           </span>
 
           <div className="divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-white overflow-hidden shadow-xs">
-            {packages.map((pkg) => {
+            {filteredPackages.map((pkg) => {
               const matchedName = pkg.employee?.full_name;
+              const dept = pkg.employee?.department;
               const formattedDate = new Date(pkg.received_at).toLocaleDateString('id-ID', {
                 day: 'numeric',
                 month: 'short',
@@ -127,7 +196,6 @@ export default function PackagesList() {
                   className="flex items-center justify-between p-4 hover:bg-slate-50/50 active:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
-                    {/* Thumbnail Image */}
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-100 relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -137,7 +205,6 @@ export default function PackagesList() {
                       />
                     </div>
 
-                    {/* Metadata */}
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2">
                         <h4 className="text-xs font-bold text-slate-900 truncate">
@@ -145,21 +212,28 @@ export default function PackagesList() {
                         </h4>
                         {matchedName && (
                           <span className="shrink-0 inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.2 text-[8px] font-semibold text-indigo-700">
-                            Match: {matchedName.split(' ')[0]}
+                            {matchedName.split(' ')[0]}
                           </span>
                         )}
                       </div>
                       <p className="text-[10px] text-slate-500 truncate font-medium">
                         {pkg.courier} &bull; {pkg.tracking_number}
                       </p>
-                      <div className="flex items-center gap-1 text-[9px] text-slate-400">
-                        <Calendar className="h-3 w-3 shrink-0" />
-                        <span>{formattedDate}</span>
+                      <div className="flex items-center gap-2 text-[9px] text-slate-400">
+                        <span className="flex items-center gap-0.5">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          {formattedDate}
+                        </span>
+                        {dept && (
+                          <span className="flex items-center gap-0.5">
+                            <Briefcase className="h-3 w-3 shrink-0" />
+                            {dept}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Status Indicator */}
                   <div className="flex items-center gap-2">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-[9px] font-bold ${

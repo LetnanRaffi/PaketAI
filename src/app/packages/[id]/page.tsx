@@ -218,20 +218,22 @@ export default function PackageDetail() {
 
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-50">
                 <div className="flex items-center gap-2">
-                  <Tag className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">NIK</span>
-                    <p className="text-xs font-semibold text-slate-700">{employee.employee_id}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
                   <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase">Departemen</span>
-                    <p className="text-xs font-semibold text-slate-700">{employee.department}</p>
+                    <p className="text-xs font-semibold text-slate-700">{employee.department || 'Tanpa Departemen'}</p>
                   </div>
                 </div>
+
+                {employee.employee_id && (
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">NIK</span>
+                      <p className="text-xs font-semibold text-slate-700">{employee.employee_id}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-50 flex items-center gap-2">

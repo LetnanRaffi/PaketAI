@@ -1,7 +1,7 @@
 export interface Employee {
   id: string;
   full_name: string;
-  employee_id: string; // NIK/ID karyawan
+  employee_id?: string | null;
   department: string;
   phone_number: string;
   created_at: string;
