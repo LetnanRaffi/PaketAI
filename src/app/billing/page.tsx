@@ -8,7 +8,7 @@ interface BillingInfo {
     name: string;
     plan: string;
     trial_ends_at: string;
-  };
+  } | null;
   subscription: {
     status: string;
     current_period_end: string | null;
@@ -16,6 +16,7 @@ interface BillingInfo {
   days_remaining: number;
   temanqris_url: string | null;
   temanqris_expires_at: string | null;
+  error?: string;
 }
 
 export default function Billing() {
@@ -32,7 +33,10 @@ export default function Billing() {
         setInfo(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setInfo({ org: null, subscription: null, days_remaining: 0, temanqris_url: null, temanqris_expires_at: null, error: 'Gagal menghubungi server.' });
+        setLoading(false);
+      });
   }, []);
 
   const handlePay = async () => {
@@ -72,17 +76,25 @@ export default function Billing() {
     );
   }
 
-  if (!info) {
+  if (!info || info.error) {
     return (
-      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
-        <p className="text-sm text-slate-500">Gagal memuat data billing.</p>
+      <div className="flex flex-1 flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <AlertCircle className="h-10 w-10 text-slate-300" />
+        <p className="text-sm text-slate-500">{info?.error || 'Gagal memuat data billing.'}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+        >
+          Coba lagi
+        </button>
       </div>
     );
   }
 
-  const isTrial = info.org.plan === 'trial';
-  const isActive = info.org.plan === 'active';
-  const isExpired = info.org.plan === 'expired' || info.org.plan === 'cancelled';
+  const plan = info.org?.plan || 'trial';
+  const isTrial = plan === 'trial';
+  const isActive = plan === 'active';
+  const isExpired = plan === 'expired' || plan === 'cancelled';
 
   return (
     <div className="flex flex-col space-y-6">
@@ -119,7 +131,7 @@ export default function Billing() {
               {isActive && info.subscription?.current_period_end &&
                 `Berlaku hingga ${new Date(info.subscription.current_period_end).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
               }
-              {isTrial &&
+              {isTrial && info.org?.trial_ends_at &&
                 `Trial berakhir ${new Date(info.org.trial_ends_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
               }
               {isExpired && 'Perpanjang langganan untuk mengakses fitur.'}
