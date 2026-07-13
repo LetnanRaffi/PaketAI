@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { GoogleGenAI } from '@google/genai';
+import { getKeyPool } from '@/lib/gemini';
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash'] as const;
+
+function isRateLimitError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') || msg.includes('UNAVAILABLE');
+}
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +18,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
+    const pool = getKeyPool();
 
     // 1. Prepare image data
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -34,7 +39,6 @@ export async function POST(request: Request) {
       
     if (empError) throw empError;
     
-    // We only send names to save tokens
     const employeeNames = employees?.map(e => e.full_name) || [];
 
     // 3. Prepare Prompt for Gemini
@@ -57,42 +61,56 @@ Format JSON yang diharapkan:
   "match_confidence": 0.0 (0 sampai 1.0)
 }`;
 
-    // 4. Call Gemini API with fallback (run in parallel with upload)
-    const models = ['gemini-3-flash-preview', 'gemini-2.5-flash'] as const;
+    // 4. Call Gemini API with key rotation + model fallback
+    const callGeminiWithKeyRotation = async (): Promise<string> => {
+      const maxAttempts = pool.getStatus().total + 1;
+      
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const { client, keyIndex } = pool.getWorkingClient();
 
-    const callGemini = async (model: string) => {
-      return ai.models.generateContent({
-        model,
-        contents: [
-          systemInstruction,
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
+        for (const model of MODELS) {
+          try {
+            const result = await client.models.generateContent({
+              model,
+              contents: [
+                systemInstruction,
+                {
+                  inlineData: {
+                    data: base64Data,
+                    mimeType: mimeType
+                  }
+                }
+              ],
+              config: {
+                responseMimeType: 'application/json',
+              }
+            });
+
+            const text = result.text;
+            if (!text) throw new Error('No response from Gemini API');
+            return text;
+          } catch (err: unknown) {
+            if (isRateLimitError(err)) {
+              console.warn(`[Scan] Key #${keyIndex} rate-limited on ${model}, rotating...`);
+              pool.markRateLimited(keyIndex);
+              break; // break model loop, retry with next key
+            }
+            // Non-rate-limit error on this model, try next model with same key
+            console.warn(`[Scan] Model ${model} failed (key #${keyIndex}): ${err instanceof Error ? err.message : err}`);
+            if (model === MODELS[MODELS.length - 1]) {
+              // Last model failed too, try next key
+              pool.markRateLimited(keyIndex);
             }
           }
-        ],
-        config: {
-          responseMimeType: 'application/json',
-        }
-      });
-    };
-
-    const tryGemini = async (): Promise<Awaited<ReturnType<typeof callGemini>>> => {
-      for (const model of models) {
-        try {
-          return await callGemini(model);
-        } catch (err: unknown) {
-          console.warn(`Model ${model} failed, trying next...`);
-          if (model === models[models.length - 1]) throw err;
         }
       }
-      throw new Error('All Gemini models failed');
+
+      throw new Error('Semua API key Gemini sudah habis / rate-limited. Coba lagi nanti.');
     };
 
     // Run Gemini + Upload in parallel
-    const [geminiResult, publicUrl] = await Promise.all([
-      tryGemini(),
+    const [responseText, publicUrl] = await Promise.all([
+      callGeminiWithKeyRotation(),
       (async () => {
         const { error } = await supabase
           .storage
@@ -107,17 +125,11 @@ Format JSON yang diharapkan:
       })()
     ]);
 
-    const responseText = geminiResult.text;
-    if (!responseText) {
-      throw new Error('No response from Gemini API');
-    }
-
     // 5. Parse Gemini response
     let aiData;
     try {
       aiData = JSON.parse(responseText);
     } catch {
-      // Sometimes models wrap json in markdown blocks despite instructions
       const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
       if (jsonMatch) {
         aiData = JSON.parse(jsonMatch[1]);
@@ -135,7 +147,6 @@ Format JSON yang diharapkan:
       if (match) {
         matchedId = match.id;
       } else {
-        // If the AI made up a name not exactly in the list
         aiData.matched_employee_name = null;
         aiData.match_confidence = 0;
       }
